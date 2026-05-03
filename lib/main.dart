@@ -127,7 +127,7 @@ class _SnakeIOStyleState extends State<SnakeIOStyle> with SingleTickerProviderSt
       if ((newHead - foodItems[i]).distance < snakeRadius) {
         foodItems.removeAt(i);
         score++;
-        currentSpeed += 0.05; // تزداد السرعة مع تقدم اللعبة
+        currentSpeed += 0.05;
         ateFood = true;
         break;
       }
@@ -194,11 +194,10 @@ class _SnakeIOStyleState extends State<SnakeIOStyle> with SingleTickerProviderSt
           // منطقة اللعب
           GestureDetector(
             onPanUpdate: (details) {
-              // التحكم بالسحب (مثل Snake.io)
+              // التحكم بالسحب
               Offset delta = details.delta / 10;
               if (delta.distance > 0.1) {
                 targetDirection = delta;
-                // تطبيع الاتجاه
                 if (targetDirection!.dx.abs() > targetDirection!.dy.abs()) {
                   targetDirection = Offset(targetDirection!.dx.sign, 0);
                 } else {
@@ -357,7 +356,7 @@ class SnakePainter extends CustomPainter {
       if (i == 0) {
         snakeColor = Colors.lightGreen;
       } else {
-        snakeColor = Color.lerp(Colors.green, Colors.darkGreen, intensity)!;
+        snakeColor = Color.lerp(Colors.green, Colors.green.shade900, intensity)!;
       }
       
       final snakePaint = Paint()
