@@ -29,12 +29,8 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   static const int gridSize = 20;
-  List<List<int>> snake = [
-    [10, 10],
-    [9, 10],
-    [8, 10]
-  ];
-  List<int> food = [15, 10];
+  late List<List<int>> snake;
+  late List<int> food;
   String direction = 'RIGHT';
   String nextDirection = 'RIGHT';
   bool isPlaying = false;
@@ -45,45 +41,69 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
-    startGame();
+    _initializeGame();
   }
 
-  void startGame() {
-    // إعادة تعيين اللعبة إلى حالتها الأولية
+  void _initializeGame() {
+    // بداية آمنة للثعبان - في منتصف اللوحة
     snake = [
-      [10, 10],
-      [9, 10],
-      [8, 10]
+      [gridSize ~/ 2, gridSize ~/ 2],
+      [gridSize ~/ 2 - 1, gridSize ~/ 2],
+      [gridSize ~/ 2 - 2, gridSize ~/ 2]
     ];
-    food = [15, 10];
     direction = 'RIGHT';
     nextDirection = 'RIGHT';
     score = 0;
-    isPlaying = true; // تم تغيير هذا الشرط لبدء اللعبة
-    _generateFood(); // تأكد من أن الطعام لا يتولد داخل جسم الأفعى
+    isPlaying = true;
+    _generateFood();
+    _startTimer();
+  }
+
+  void _startTimer() {
     gameTimer?.cancel();
-    gameTimer = Timer.periodic(const Duration(milliseconds: 180), (timer) {
-      if (isPlaying) {
+    gameTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
+      if (isPlaying && mounted) {
         _moveSnake();
         setState(() {});
-      } else {
-        timer.cancel();
       }
     });
   }
 
   void _generateFood() {
-    // Ensure food does not appear on the snake's body
-    do {
-      food = [random.nextInt(gridSize), random.nextInt(gridSize)];
-    } while (snake.any((segment) => segment[0] == food[0] && segment[1] == food[1]));
+    List<List<int>> availablePositions = [];
+    
+    // ابحث عن جميع المواقع الفارغة
+    for (int i = 0; i < gridSize; i++) {
+      for (int j = 0; j < gridSize; j++) {
+        bool isOccupied = false;
+        for (var segment in snake) {
+          if (segment[0] == i && segment[1] == j) {
+            isOccupied = true;
+            break;
+          }
+        }
+        if (!isOccupied) {
+          availablePositions.add([i, j]);
+        }
+      }
+    }
+    
+    if (availablePositions.isEmpty) {
+      // اللاعب فاز!
+      _gameOver();
+      return;
+    }
+    
+    int randomIndex = random.nextInt(availablePositions.length);
+    food = availablePositions[randomIndex];
   }
 
   void _moveSnake() {
     if (!isPlaying) return;
+    
     direction = nextDirection;
     List<int> newHead = List.from(snake.first);
-
+    
     switch (direction) {
       case 'UP':
         newHead[1]--;
@@ -98,24 +118,27 @@ class _GameScreenState extends State<GameScreen> {
         newHead[0]++;
         break;
     }
-
-    // Check for wall collision
+    
+    // التحقق من التصادم مع الجدار
     if (newHead[0] < 0 || newHead[0] >= gridSize || newHead[1] < 0 || newHead[1] >= gridSize) {
       _gameOver();
       return;
     }
-
+    
+    // التحقق من أكل الطعام
     bool ateFood = (newHead[0] == food[0] && newHead[1] == food[1]);
+    
+    // إضافة الرأس الجديد
     snake.insert(0, newHead);
-
+    
     if (ateFood) {
       score++;
       _generateFood();
     } else {
       snake.removeLast();
     }
-
-    // Check for self collision
+    
+    // التحقق من التصادم مع الذات (تجاهل الرأس الجديد)
     for (int i = 1; i < snake.length; i++) {
       if (snake[i][0] == snake[0][0] && snake[i][1] == snake[0][1]) {
         _gameOver();
@@ -125,32 +148,33 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _gameOver() {
-    if (isPlaying) {
-      isPlaying = false;
-      gameTimer?.cancel();
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: const Text('Game Over!'),
-          content: Text('Your score: $score\nPlay again?'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                startGame();
-                setState(() {});
-              },
-              child: const Text('Yes'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('No'),
-            ),
-          ],
-        ),
-      );
-    }
+    if (!isPlaying) return;
+    
+    isPlaying = false;
+    gameTimer?.cancel();
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Game Over!'),
+        content: Text('Your score: $score\nPlay again?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _initializeGame();
+              setState(() {});
+            },
+            child: const Text('Yes'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('No'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _changeDirection(String newDirection) {
@@ -163,12 +187,18 @@ class _GameScreenState extends State<GameScreen> {
     nextDirection = newDirection;
   }
 
+  void _resetGame() {
+    _initializeGame();
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Column(
         children: [
+          // شريط النقاط
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.green.shade900,
@@ -186,6 +216,8 @@ class _GameScreenState extends State<GameScreen> {
               ],
             ),
           ),
+          
+          // شبكة اللعبة
           Expanded(
             child: GestureDetector(
               onVerticalDragUpdate: (details) {
@@ -214,16 +246,21 @@ class _GameScreenState extends State<GameScreen> {
                   itemBuilder: (context, index) {
                     int x = index % gridSize;
                     int y = index ~/ gridSize;
-                    bool isSnake = snake.any((segment) => segment[0] == x && segment[1] == y);
-                    bool isFood = food[0] == x && food[1] == y;
+                    bool isSnake = false;
+                    for (var segment in snake) {
+                      if (segment[0] == x && segment[1] == y) {
+                        isSnake = true;
+                        break;
+                      }
+                    }
+                    bool isFood = (food[0] == x && food[1] == y);
+                    
                     return Container(
                       margin: const EdgeInsets.all(1),
                       decoration: BoxDecoration(
                         color: isSnake
                             ? Colors.green
-                            : (isFood
-                                ? Colors.red
-                                : Colors.grey.shade800),
+                            : (isFood ? Colors.red : Colors.grey.shade800),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     );
@@ -232,6 +269,8 @@ class _GameScreenState extends State<GameScreen> {
               ),
             ),
           ),
+          
+          // أزرار التحكم
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.green.shade900,
