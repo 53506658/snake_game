@@ -3,78 +3,78 @@ import 'dart:async';
 import 'dart:math';
 
 void main() {
-  runApp(const SnakeGame());
+  runApp(const MyApp());
 }
 
-class SnakeGame extends StatelessWidget {
-  const SnakeGame({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Snake Game',
       theme: ThemeData.dark(),
-      home: const GameScreen(),
+      home: const SnakeHomePage(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class GameScreen extends StatefulWidget {
-  const GameScreen({super.key});
+class SnakeHomePage extends StatefulWidget {
+  const SnakeHomePage({super.key});
 
   @override
-  State<GameScreen> createState() => _GameScreenState();
+  State<SnakeHomePage> createState() => _SnakeHomePageState();
 }
 
-class _GameScreenState extends State<GameScreen> {
-  static const int gridSize = 20;
+class _SnakeHomePageState extends State<SnakeHomePage> {
+  static const int boardSize = 15;
   late List<List<int>> snake;
   late List<int> food;
-  String direction = 'RIGHT';
+  String currentDirection = 'RIGHT';
   String nextDirection = 'RIGHT';
-  bool isPlaying = false;
-  int score = 0;
-  Timer? gameTimer;
-  final Random random = Random();
+  bool isGameRunning = true;
+  int currentScore = 0;
+  Timer? gameLoop;
+  final Random randomGenerator = Random();
 
   @override
   void initState() {
     super.initState();
-    _initializeGame();
+    startNewGame();
   }
 
-  void _initializeGame() {
-    // بداية آمنة للثعبان - في منتصف اللوحة
+  void startNewGame() {
+    // بداية آمنة للثعبان
     snake = [
-      [gridSize ~/ 2, gridSize ~/ 2],
-      [gridSize ~/ 2 - 1, gridSize ~/ 2],
-      [gridSize ~/ 2 - 2, gridSize ~/ 2]
+      [7, 7],
+      [6, 7],
+      [5, 7],
+      [4, 7]
     ];
-    direction = 'RIGHT';
+    currentDirection = 'RIGHT';
     nextDirection = 'RIGHT';
-    score = 0;
-    isPlaying = true;
-    _generateFood();
-    _startTimer();
+    currentScore = 0;
+    isGameRunning = true;
+    generateValidFood();
+    startGameLoop();
   }
 
-  void _startTimer() {
-    gameTimer?.cancel();
-    gameTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
-      if (isPlaying && mounted) {
-        _moveSnake();
+  void startGameLoop() {
+    gameLoop?.cancel();
+    gameLoop = Timer.periodic(const Duration(milliseconds: 200), (timer) {
+      if (isGameRunning && mounted) {
+        moveSnake();
         setState(() {});
       }
     });
   }
 
-  void _generateFood() {
-    List<List<int>> availablePositions = [];
+  void generateValidFood() {
+    List<List<int>> freeCells = [];
     
-    // ابحث عن جميع المواقع الفارغة
-    for (int i = 0; i < gridSize; i++) {
-      for (int j = 0; j < gridSize; j++) {
+    for (int i = 0; i < boardSize; i++) {
+      for (int j = 0; j < boardSize; j++) {
         bool isOccupied = false;
         for (var segment in snake) {
           if (segment[0] == i && segment[1] == j) {
@@ -83,28 +83,28 @@ class _GameScreenState extends State<GameScreen> {
           }
         }
         if (!isOccupied) {
-          availablePositions.add([i, j]);
+          freeCells.add([i, j]);
         }
       }
     }
     
-    if (availablePositions.isEmpty) {
+    if (freeCells.isEmpty) {
       // اللاعب فاز!
-      _gameOver();
+      gameOver();
       return;
     }
     
-    int randomIndex = random.nextInt(availablePositions.length);
-    food = availablePositions[randomIndex];
+    int randomIndex = randomGenerator.nextInt(freeCells.length);
+    food = freeCells[randomIndex];
   }
 
-  void _moveSnake() {
-    if (!isPlaying) return;
+  void moveSnake() {
+    if (!isGameRunning) return;
     
-    direction = nextDirection;
+    currentDirection = nextDirection;
     List<int> newHead = List.from(snake.first);
     
-    switch (direction) {
+    switch (currentDirection) {
       case 'UP':
         newHead[1]--;
         break;
@@ -120,50 +120,50 @@ class _GameScreenState extends State<GameScreen> {
     }
     
     // التحقق من التصادم مع الجدار
-    if (newHead[0] < 0 || newHead[0] >= gridSize || newHead[1] < 0 || newHead[1] >= gridSize) {
-      _gameOver();
+    if (newHead[0] < 0 || newHead[0] >= boardSize || newHead[1] < 0 || newHead[1] >= boardSize) {
+      gameOver();
       return;
     }
     
     // التحقق من أكل الطعام
-    bool ateFood = (newHead[0] == food[0] && newHead[1] == food[1]);
+    bool didEatFood = (newHead[0] == food[0] && newHead[1] == food[1]);
     
     // إضافة الرأس الجديد
     snake.insert(0, newHead);
     
-    if (ateFood) {
-      score++;
-      _generateFood();
+    if (didEatFood) {
+      currentScore++;
+      generateValidFood();
     } else {
       snake.removeLast();
     }
     
-    // التحقق من التصادم مع الذات (تجاهل الرأس الجديد)
+    // التحقق من التصادم مع الذات
     for (int i = 1; i < snake.length; i++) {
       if (snake[i][0] == snake[0][0] && snake[i][1] == snake[0][1]) {
-        _gameOver();
+        gameOver();
         return;
       }
     }
   }
 
-  void _gameOver() {
-    if (!isPlaying) return;
+  void gameOver() {
+    if (!isGameRunning) return;
     
-    isPlaying = false;
-    gameTimer?.cancel();
+    isGameRunning = false;
+    gameLoop?.cancel();
     
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('Game Over!'),
-        content: Text('Your score: $score\nPlay again?'),
+        content: Text('Your score: $currentScore\nPlay again?'),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              _initializeGame();
+              startNewGame();
               setState(() {});
             },
             child: const Text('Yes'),
@@ -177,19 +177,14 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  void _changeDirection(String newDirection) {
-    if ((direction == 'UP' && newDirection == 'DOWN') ||
-        (direction == 'DOWN' && newDirection == 'UP') ||
-        (direction == 'LEFT' && newDirection == 'RIGHT') ||
-        (direction == 'RIGHT' && newDirection == 'LEFT')) {
+  void changeDirection(String newDirection) {
+    if ((currentDirection == 'UP' && newDirection == 'DOWN') ||
+        (currentDirection == 'DOWN' && newDirection == 'UP') ||
+        (currentDirection == 'LEFT' && newDirection == 'RIGHT') ||
+        (currentDirection == 'RIGHT' && newDirection == 'LEFT')) {
       return;
     }
     nextDirection = newDirection;
-  }
-
-  void _resetGame() {
-    _initializeGame();
-    setState(() {});
   }
 
   @override
@@ -210,62 +205,62 @@ class _GameScreenState extends State<GameScreen> {
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
                 Text(
-                  'Score: $score',
+                  'Score: $currentScore',
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ],
             ),
           ),
           
-          // شبكة اللعبة
+          // شاشة اللعبة
           Expanded(
             child: GestureDetector(
               onVerticalDragUpdate: (details) {
                 if (details.delta.dy > 0) {
-                  _changeDirection('DOWN');
+                  changeDirection('DOWN');
                 } else if (details.delta.dy < 0) {
-                  _changeDirection('UP');
+                  changeDirection('UP');
                 }
               },
               onHorizontalDragUpdate: (details) {
                 if (details.delta.dx > 0) {
-                  _changeDirection('RIGHT');
+                  changeDirection('RIGHT');
                 } else if (details.delta.dx < 0) {
-                  _changeDirection('LEFT');
+                  changeDirection('LEFT');
                 }
               },
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                child: GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: gridSize,
-                    childAspectRatio: 1,
-                  ),
-                  itemCount: gridSize * gridSize,
-                  itemBuilder: (context, index) {
-                    int x = index % gridSize;
-                    int y = index ~/ gridSize;
-                    bool isSnake = false;
-                    for (var segment in snake) {
-                      if (segment[0] == x && segment[1] == y) {
-                        isSnake = true;
-                        break;
-                      }
-                    }
-                    bool isFood = (food[0] == x && food[1] == y);
-                    
-                    return Container(
-                      margin: const EdgeInsets.all(1),
-                      decoration: BoxDecoration(
-                        color: isSnake
-                            ? Colors.green
-                            : (isFood ? Colors.red : Colors.grey.shade800),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    );
-                  },
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: boardSize,
+                  childAspectRatio: 1,
                 ),
+                itemCount: boardSize * boardSize,
+                itemBuilder: (context, index) {
+                  int x = index % boardSize;
+                  int y = index ~/ boardSize;
+                  
+                  // التحقق مما إذا كانت الخلية جزء من الثعبان
+                  bool isSnakeCell = false;
+                  for (var segment in snake) {
+                    if (segment[0] == x && segment[1] == y) {
+                      isSnakeCell = true;
+                      break;
+                    }
+                  }
+                  
+                  bool isFoodCell = (food[0] == x && food[1] == y);
+                  
+                  return Container(
+                    margin: const EdgeInsets.all(1),
+                    decoration: BoxDecoration(
+                      color: isSnakeCell
+                          ? Colors.green
+                          : (isFoodCell ? Colors.red : Colors.grey.shade800),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -309,7 +304,7 @@ class _GameScreenState extends State<GameScreen> {
     return Container(
       margin: const EdgeInsets.all(5),
       child: ElevatedButton(
-        onPressed: isPlaying ? () => _changeDirection(dir) : null,
+        onPressed: isGameRunning ? () => changeDirection(dir) : null,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.green,
           minimumSize: const Size(60, 60),
@@ -324,7 +319,7 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   void dispose() {
-    gameTimer?.cancel();
+    gameLoop?.cancel();
     super.dispose();
   }
 }
