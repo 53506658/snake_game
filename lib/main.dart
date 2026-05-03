@@ -29,11 +29,15 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   static const int gridSize = 20;
-  List<List<int>> snake = [[10, 10]];
+  List<List<int>> snake = [
+    [10, 10],
+    [9, 10],
+    [8, 10]
+  ];
   List<int> food = [15, 10];
   String direction = 'RIGHT';
   String nextDirection = 'RIGHT';
-  bool isPlaying = true;
+  bool isPlaying = false;
   int score = 0;
   Timer? gameTimer;
   final Random random = Random();
@@ -45,53 +49,73 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void startGame() {
-    snake = [[10, 10]];
+    // إعادة تعيين اللعبة إلى حالتها الأولية
+    snake = [
+      [10, 10],
+      [9, 10],
+      [8, 10]
+    ];
+    food = [15, 10];
     direction = 'RIGHT';
     nextDirection = 'RIGHT';
-    isPlaying = true;
     score = 0;
-    _generateFood();
+    isPlaying = true; // تم تغيير هذا الشرط لبدء اللعبة
+    _generateFood(); // تأكد من أن الطعام لا يتولد داخل جسم الأفعى
     gameTimer?.cancel();
-    gameTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
+    gameTimer = Timer.periodic(const Duration(milliseconds: 180), (timer) {
       if (isPlaying) {
         _moveSnake();
         setState(() {});
+      } else {
+        timer.cancel();
       }
     });
   }
 
   void _generateFood() {
+    // Ensure food does not appear on the snake's body
     do {
       food = [random.nextInt(gridSize), random.nextInt(gridSize)];
     } while (snake.any((segment) => segment[0] == food[0] && segment[1] == food[1]));
   }
 
   void _moveSnake() {
+    if (!isPlaying) return;
     direction = nextDirection;
     List<int> newHead = List.from(snake.first);
-    
+
     switch (direction) {
-      case 'UP': newHead[1]--; break;
-      case 'DOWN': newHead[1]++; break;
-      case 'LEFT': newHead[0]--; break;
-      case 'RIGHT': newHead[0]++; break;
+      case 'UP':
+        newHead[1]--;
+        break;
+      case 'DOWN':
+        newHead[1]++;
+        break;
+      case 'LEFT':
+        newHead[0]--;
+        break;
+      case 'RIGHT':
+        newHead[0]++;
+        break;
     }
-    
+
+    // Check for wall collision
     if (newHead[0] < 0 || newHead[0] >= gridSize || newHead[1] < 0 || newHead[1] >= gridSize) {
       _gameOver();
       return;
     }
-    
+
     bool ateFood = (newHead[0] == food[0] && newHead[1] == food[1]);
     snake.insert(0, newHead);
-    
+
     if (ateFood) {
       score++;
       _generateFood();
     } else {
       snake.removeLast();
     }
-    
+
+    // Check for self collision
     for (int i = 1; i < snake.length; i++) {
       if (snake[i][0] == snake[0][0] && snake[i][1] == snake[0][1]) {
         _gameOver();
@@ -101,37 +125,41 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _gameOver() {
-    isPlaying = false;
-    gameTimer?.cancel();
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Game Over!'),
-        content: Text('Your score: $score\nPlay again?'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              startGame();
-              setState(() {});
-            },
-            child: const Text('Yes'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('No'),
-          ),
-        ],
-      ),
-    );
+    if (isPlaying) {
+      isPlaying = false;
+      gameTimer?.cancel();
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Game Over!'),
+          content: Text('Your score: $score\nPlay again?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                startGame();
+                setState(() {});
+              },
+              child: const Text('Yes'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('No'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   void _changeDirection(String newDirection) {
     if ((direction == 'UP' && newDirection == 'DOWN') ||
         (direction == 'DOWN' && newDirection == 'UP') ||
         (direction == 'LEFT' && newDirection == 'RIGHT') ||
-        (direction == 'RIGHT' && newDirection == 'LEFT')) return;
+        (direction == 'RIGHT' && newDirection == 'LEFT')) {
+      return;
+    }
     nextDirection = newDirection;
   }
 
@@ -147,20 +175,32 @@ class _GameScreenState extends State<GameScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Snake Game', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                Text('Score: $score', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                const Text(
+                  'Snake Game',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                Text(
+                  'Score: $score',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
               ],
             ),
           ),
           Expanded(
             child: GestureDetector(
               onVerticalDragUpdate: (details) {
-                if (details.delta.dy > 0) _changeDirection('DOWN');
-                else if (details.delta.dy < 0) _changeDirection('UP');
+                if (details.delta.dy > 0) {
+                  _changeDirection('DOWN');
+                } else if (details.delta.dy < 0) {
+                  _changeDirection('UP');
+                }
               },
               onHorizontalDragUpdate: (details) {
-                if (details.delta.dx > 0) _changeDirection('RIGHT');
-                else if (details.delta.dx < 0) _changeDirection('LEFT');
+                if (details.delta.dx > 0) {
+                  _changeDirection('RIGHT');
+                } else if (details.delta.dx < 0) {
+                  _changeDirection('LEFT');
+                }
               },
               child: Container(
                 padding: const EdgeInsets.all(20),
@@ -179,7 +219,11 @@ class _GameScreenState extends State<GameScreen> {
                     return Container(
                       margin: const EdgeInsets.all(1),
                       decoration: BoxDecoration(
-                        color: isSnake ? Colors.green : (isFood ? Colors.red : Colors.grey.shade800),
+                        color: isSnake
+                            ? Colors.green
+                            : (isFood
+                                ? Colors.red
+                                : Colors.grey.shade800),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     );
@@ -193,15 +237,27 @@ class _GameScreenState extends State<GameScreen> {
             color: Colors.green.shade900,
             child: Column(
               children: [
-                Row(mainAxisAlignment: MainAxisAlignment.center, children: [_buildControlButton('↑', 'UP')]),
-                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  _buildControlButton('←', 'LEFT'),
-                  const SizedBox(width: 50),
-                  _buildControlButton('→', 'RIGHT'),
-                ]),
-                Row(mainAxisAlignment: MainAxisAlignment.center, children: [_buildControlButton('↓', 'DOWN')]),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [_buildControlButton('↑', 'UP')],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildControlButton('←', 'LEFT'),
+                    const SizedBox(width: 50),
+                    _buildControlButton('→', 'RIGHT'),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [_buildControlButton('↓', 'DOWN')],
+                ),
                 const SizedBox(height: 10),
-                const Text('Use arrows or swipe', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                const Text(
+                  'Use arrows or swipe',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
               ],
             ),
           ),
@@ -215,8 +271,14 @@ class _GameScreenState extends State<GameScreen> {
       margin: const EdgeInsets.all(5),
       child: ElevatedButton(
         onPressed: isPlaying ? () => _changeDirection(dir) : null,
-        style: ElevatedButton.styleFrom(backgroundColor: Colors.green, minimumSize: const Size(60, 60)),
-        child: Text(icon, style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green,
+          minimumSize: const Size(60, 60),
+        ),
+        child: Text(
+          icon,
+          style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }
