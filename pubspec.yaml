@@ -1,5 +1,5 @@
 name: snake_game
-description: Final Master Version - Snake IO Pro.
+description: Final Stable Snake Pro - Ads & Leaderboard.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,19 +9,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-  # الإعلانات (إصدارات مستقرة ومتوافقة)
   google_mobile_ads: ^5.1.0
-  yandex_mobileads: ^7.0.0
-
-  # الصوت وتخزين البيانات
+  # التحديث للإصدار الأحدث لحل مشكلة "الملف غير موجود"
+  yandex_mobileads: ^8.1.0
   audioplayers: ^5.2.1
   shared_preferences: ^2.2.3
-
-  # لوحة الصدارة العالمية (Firebase)
   firebase_core: ^2.24.2
   cloud_firestore: ^4.14.0
-
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
