@@ -1,14 +1,20 @@
 buildscript {
-    ext.kotlin_version = '1.9.20'
+    // تحديث نسخة Kotlin إلى 2.0.0 كما طلبت لضمان أعلى توافق
+    ext.kotlin_version = '2.0.0'
+    
     repositories {
         google()
         mavenCentral()
     }
-    dependencies {
-        // سطر خدمات جوجل للوحة الصدارة
-        classpath 'com.google.gms:google-services:4.3.15'
 
+    dependencies {
+        // وسيلة الاتصال بـ Firebase ولوحة الصدارة
+        classpath 'com.google.gms:google-services:4.3.15'
+        
+        // أداة بناء الأندرويد المتوافقة مع Kotlin 2.0
         classpath 'com.android.tools.build:gradle:8.1.1'
+        
+        // إضافة دعم لغة Kotlin للمشروع
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
@@ -17,7 +23,9 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // --- إضافة مستودع ياندكس لضمان تحميل مكتبة الإعلانات بنجاح ---
+        
+        // مستودع إعلانات ياندكس (Yandex Mobile Ads SDK)
+        // هذا السطر حيوي جداً لتحميل مكتبات الإعلانات بنجاح
         maven { url "https://yandex.net" }
     }
 }
@@ -30,6 +38,6 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
-tasks.register('clean', Delete) {
+tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }

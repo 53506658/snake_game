@@ -1,46 +1,79 @@
-plugins {
-    id "com.android.application"
-    id "kotlin-android"
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
-    id "dev.flutter.flutter-gradle-plugin"
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { stream ->
+        localProperties.load(stream)
+    }
 }
 
+def flutterRoot = localProperties.getProperty('flutter.sdk')
+if (flutterRoot == null) {
+    throw new GradleException("Flutter SDK not found. Define location with flutter.sdk in the local.properties file.")
+}
+
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) {
+    flutterVersionCode = '1'
+}
+
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+if (flutterVersionName == null) {
+    flutterVersionName = '1.0'
+}
+
+apply plugin: 'com.android.application'
+// تفعيل لغة Kotlin
+apply plugin: 'kotlin-android'
+// تفعيل خدمات جوجل (ضروري للـ Firebase ولوحة الصدارة)
+apply plugin: 'com.google.gms.google-services'
+apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+
 android {
-    namespace = "com.example.snake_game_full"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    namespace "com.example.snake_game" // تأكد أن هذا يطابق معرف تطبيقك
+    compileSdkVersion 34 // تحديث لضمان التوافق مع المكتبات الجديدة
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8
+        jvmTarget = '1.8'
     }
 
     defaultConfig {
-        applicationId = "com.example.snake_game_full"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        applicationId "com.example.snake_game" // معرف التطبيق الخاص بك
+        // مكتبات الإعلانات والـ Firebase تتطلب على الأقل 21 ويفضل 23
+        minSdkVersion 23 
+        targetSdkVersion 34
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
 
-        // --- الإضافة الهامة هنا لنجاح الـ Build ---
-        multiDexEnabled true 
+        // تفعيل Multidex لمنع خطأ الـ 64k method limit بسبب كثرة المكتبات
+        multiDexEnabled true
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            signingConfig = signingConfigs.debug
+            // يمكنك إضافة إعدادات التوقيع هنا (Signing Config)
+            signingConfig signingConfigs.debug 
+            minifyEnabled false
+            shrinkResources false
         }
     }
 }
 
 flutter {
-    source = "../.."
+    source '../..'
 }
 
-// ربط خدمات جوجل ولوحة الصدارة
-apply plugin: 'com.google.gms.google-services'
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    
+    // دعم Multidex
+    implementation 'com.android.support:multidex:1.0.3'
+    
+    // تأكد من إضافة مكتبات Firebase و Ads هنا إذا لم تكن مضافة تلقائياً عبر Flutter
+    implementation platform('com.google.firebase:firebase-bom:32.2.0')
+    implementation 'com.google.firebase:firebase-analytics'
+}
