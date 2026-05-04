@@ -17,12 +17,16 @@ pluginManagement {
 }
 
 plugins {
-    // هذا الجزء تم تحديثه لضمان توافق إعلانات ياندكس وجوجل مع Kotlin
-    id "dev.flutter.flutter-plugin-loader" version "1.0.0"
+    // المحرك الأساسي لـ Flutter (هذا السطر يحل الخطأ الأخير)
+    id "dev.flutter.flutter-gradle-plugin" version "1.0.0" apply false
+    
+    // أداة بناء تطبيقات الأندرويد
     id "com.android.application" version "8.1.0" apply false
+    
+    // لغة البرمجة Kotlin (الإصدار المتوافق مع ياندكس وجوجل)
     id "org.jetbrains.kotlin.android" version "1.9.20" apply false
     
-    // إضافة خدمات جوجل (ضروري إذا كنت تستخدم Firebase/Ads)
+    // خدمات جوجل و Firebase (لوحة الصدارة)
     id "com.google.gms.google-services" version "4.3.15" apply false
 }
 
