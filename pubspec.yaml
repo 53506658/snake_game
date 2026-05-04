@@ -9,16 +9,31 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  
+  # مكتبة الإعلانات (AdMob)
   google_mobile_ads: ^5.1.0
+  
+  # مكتبة الأصوات (الموسيقى وتأثيرات الأكل)
   audioplayers: ^5.2.1
+  
+  # مكتبة حفظ النقاط والترقيات والجلود محلياً
   shared_preferences: ^2.2.2
-  flutter_launcher_icons: ^0.13.1
+  
+  # مكتبات لوحة الصدارة العالمية (Firebase)
+  firebase_core: ^3.0.0
+  cloud_firestore: ^5.0.0
+
+  # أيقونات إضافية
   cupertino_icons: ^1.0.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  
+  # أداة إنشاء أيقونة التطبيق تلقائياً
+  flutter_launcher_icons: ^0.13.1
 
+# إعدادات أيقونة التطبيق
 flutter_launcher_icons:
   android: true
   ios: true
@@ -26,16 +41,16 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
-  
-  # تعريف الملفات والمجلدات
+
+  # تعريف جميع ملفات الوسائط (الصور والأصوات)
   assets:
-    - assets/icon/
-    - assets/audio/
-    # تعريف صور الثعبان (PNG للشفافية)
     - assets/head.png
     - assets/body.png
     - assets/tail.png
-    # تعريف خلفيات المستويات (البيئات)
     - assets/forest.png
     - assets/desert.jpg
     - assets/snow.jpg
+    - assets/icon/game_icon.png
+    - assets/audio/music.mp3
+    - assets/audio/eat.mp3
+    - assets/audio/die.wav
