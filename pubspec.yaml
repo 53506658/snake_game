@@ -10,33 +10,20 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # إعلانات جوجل (AdMob)
   google_mobile_ads: ^5.1.0
+  yandex_mobileads: ^7.3.0
 
-  # إعلانات ياندكس (Yandex Ads SDK)
-  yandex_mobileads_sdk: ^7.3.0
-
-  # مكتبة الأصوات (الموسيقى وتأثيرات الأكل)
   audioplayers: ^5.2.1
-
-  # مكتبة حفظ النقاط والترقيات والجلود محلياً
   shared_preferences: ^2.2.3
-
-  # مكتبات لوحة الصدارة العالمية (Firebase)
   firebase_core: ^3.1.1
   cloud_firestore: ^5.0.2
-
-  # أيقونات إضافية
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  
-  # أداة إنشاء أيقونة التطبيق تلقائياً
   flutter_launcher_icons: ^0.13.1
 
-# إعدادات أيقونة التطبيق
 flutter_launcher_icons:
   android: true
   ios: true
@@ -44,20 +31,14 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
-
-  # تعريف جميع ملفات الوسائط (الصور والأصوات)
   assets:
-    # صور الثعبان
     - assets/head.png
     - assets/body.png
     - assets/tail.png
-    # صور الخلفيات
     - assets/forest.png
     - assets/desert.jpg
     - assets/snow.jpg
-    # الأيقونات
     - assets/icon/game_icon.png
-    # الأصوات (تأكد من وجود المجلد والملفات)
     - assets/audio/music.mp3
     - assets/audio/eat.mp3
     - assets/audio/die.wav
