@@ -2,9 +2,8 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-// استخدام اختصارات لمنع تضارب الأسماء
-import 'package:google_mobile_ads/google_mobile_ads.dart' as google;
-import 'package:yandex_mobileads/yandex_mobileads.dart' as yandex;
+import 'package:google_mobile_ads/google_mobile_ads.dart' as g_ads;
+import 'package:yandex_mobileads/yandex_mobileads.dart' as y_ads;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -14,10 +13,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await Firebase.initializeApp();
-    await google.MobileAds.instance.initialize();
-    yandex.MobileAds.initialize(); 
+    await g_ads.MobileAds.instance.initialize();
+    y_ads.MobileAds.initialize(); 
   } catch (e) {
-    debugPrint("Init Error: $e");
+    debugPrint("Ads/Firebase Init Error: $e");
   }
   runApp(MaterialApp(home: StartScreen(), debugShowCheckedModeBanner: false));
 }
@@ -42,7 +41,7 @@ class _StartScreenState extends State<StartScreen> {
   Color selectedColor = Colors.orange;
   List<String> unlockedSkins = ['orange'];
   bool isMuted = false;
-  google.BannerAd? _bannerAd;
+  g_ads.BannerAd? _bannerAd;
   bool _isBannerAdLoaded = false;
 
   final Map<String, Color> skinLibrary = {
@@ -53,11 +52,11 @@ class _StartScreenState extends State<StartScreen> {
   void initState() { super.initState(); _loadData(); _loadBannerAd(); }
 
   void _loadBannerAd() {
-    _bannerAd = google.BannerAd(
+    _bannerAd = g_ads.BannerAd(
       adUnitId: 'ca-app-pub-3940256099942544/6300978111',
-      size: google.AdSize.banner,
-      request: const google.AdRequest(),
-      listener: google.BannerAdListener(
+      size: g_ads.AdSize.banner,
+      request: const g_ads.AdRequest(),
+      listener: g_ads.BannerAdListener(
         onAdLoaded: (_) => setState(() => _isBannerAdLoaded = true),
         onAdFailedToLoad: (ad, e) => ad.dispose(),
       ),
@@ -89,28 +88,31 @@ class _StartScreenState extends State<StartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Size s = MediaQuery.of(context).size;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
           Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text("SNAKE PRO", style: TextStyle(color: Colors.orangeAccent, fontSize: 60, fontWeight: FontWeight.bold)),
-                Text("💰 Points: $totalPoints", style: const TextStyle(color: Colors.amber, fontSize: 20)),
-                const SizedBox(height: 30),
-                Row(mainAxisAlignment: MainAxisAlignment.center, children: skinLibrary.keys.map((name) => _skinCircle(name)).toList()),
-                const SizedBox(height: 40),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 20), shape: const StadiumBorder()),
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => SnakeIoPro(color: selectedColor, isMuted: isMuted))).then((_) => _loadData()),
-                  child: const Text("PLAY", style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold)),
-                ),
-              ],
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("SNAKE PRO", style: TextStyle(color: Colors.orangeAccent, fontSize: 60, fontWeight: FontWeight.bold)),
+                  Text("💰 Points: $totalPoints", style: const TextStyle(color: Colors.amber, fontSize: 20)),
+                  const SizedBox(height: 30),
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: skinLibrary.keys.map((name) => _skinCircle(name)).toList()),
+                  const SizedBox(height: 40),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 20), shape: const StadiumBorder()),
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => SnakeIoPro(color: selectedColor, isMuted: isMuted))).then((_) => _loadData()),
+                    child: const Text("PLAY", style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
             ),
           ),
-          if (_isBannerAdLoaded) Positioned(bottom: 0, width: MediaQuery.of(context).size.width, height: 50, child: google.AdWidget(ad: _bannerAd!)),
+          if (_isBannerAdLoaded) Positioned(bottom: 0, width: s.width, height: 50, child: g_ads.AdWidget(ad: _bannerAd!)),
         ],
       ),
     );
@@ -137,8 +139,8 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   final double worldSize = 5000.0; Timer? gameLoop;
   ui.Image? head, body;
   final AudioPlayer bgPlayer = AudioPlayer(), fxPlayer = AudioPlayer();
-  google.InterstitialAd? _googleAd;
-  yandex.InterstitialAd? _yandexAd;
+  g_ads.InterstitialAd? _googleAd;
+  y_ads.InterstitialAd? _yandexAd;
 
   @override
   void initState() {
@@ -146,23 +148,23 @@ class _SnakeIoProState extends State<SnakeIoPro> {
     player = Snake(startPos: const Offset(2500, 2500), skinColor: widget.color);
     bots = List.generate(5, (i) => Snake(startPos: Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize), skinColor: Colors.blue));
     food = List.generate(200, (i) => Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize));
-    _loadAssets(); _loadAds();
+    _loadAssets(); _loadDualAds();
     if (!widget.isMuted) _playMusic();
     gameLoop = Timer.periodic(const Duration(milliseconds: 16), (t) => updateGame());
   }
 
-  void _loadAds() {
-    google.InterstitialAd.load(
+  void _loadDualAds() {
+    g_ads.InterstitialAd.load(
       adUnitId: 'ca-app-pub-3940256099942544/1033173712',
-      request: const google.AdRequest(),
-      adLoadCallback: google.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null),
+      request: const g_ads.AdRequest(),
+      adLoadCallback: g_ads.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null),
     );
     
-    final loader = yandex.InterstitialAdLoader(
+    final loader = y_ads.InterstitialAdLoader(
       onAdLoaded: (ad) => setState(() => _yandexAd = ad),
       onAdFailedToLoad: (error) => _yandexAd = null,
     );
-    loader.loadAd(adRequestConfiguration: yandex.AdRequestConfiguration(adUnitId: 'R-M-DEMO-interstitial'));
+    loader.loadAd(adRequestConfiguration: y_ads.AdRequestConfiguration(adUnitId: 'R-M-DEMO-interstitial'));
   }
 
   void _playMusic() async { await bgPlayer.setReleaseMode(ReleaseMode.loop); await bgPlayer.play(AssetSource('audio/music.mp3')); await bgPlayer.setVolume(0.3); }
@@ -195,8 +197,8 @@ class _SnakeIoProState extends State<SnakeIoPro> {
 
   void _move(Snake s) {
     double spd = (s.isBoosting ? 12.0 : 6.0);
-    s.body.insert(0, Offset((s.body.first.dx + cos(s.angle)*spd).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*spd).clamp(0, worldSize)));
-    s.angles.insert(0, s.angle);
+    Offset next = Offset((s.body.first.dx + cos(s.angle)*spd).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*spd).clamp(0, worldSize));
+    s.body.insert(0, next); s.angles.insert(0, s.angle);
     if (s.body.length > s.length) { s.body.removeLast(); s.angles.removeLast(); }
   }
 
@@ -215,16 +217,14 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   void _end() async {
     gameLoop?.cancel(); bgPlayer.stop();
     final prefs = await SharedPreferences.getInstance();
-    int oldHighScore = prefs.getInt('highScore') ?? 0;
+    int currentHighScore = prefs.getInt('highScore') ?? 0;
     
     await prefs.setInt('totalPoints', (prefs.getInt('totalPoints') ?? 0) + player.length);
     
-    // تصحيح خطأ highScore undefined
-    if (player.length > oldHighScore) {
+    if (player.length > currentHighScore) {
       await prefs.setInt('highScore', player.length);
       try { FirebaseFirestore.instance.collection('leaderboard').add({'name': 'Player', 'score': player.length}); } catch (e) {}
     }
-
     if (_googleAd != null) _googleAd!.show(); else if (_yandexAd != null) _yandexAd!.show();
     if (!widget.isMuted) await fxPlayer.play(AssetSource('audio/die.wav'));
     Navigator.pop(context);
@@ -259,6 +259,7 @@ class GamePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // الكاميرا تتبع اللاعب بدقة تامة لمنع اللون الأبيض
     canvas.translate(sz.width / 2 - player.body.first.dx, sz.height / 2 - player.body.first.dy);
     canvas.drawRect(Rect.fromLTWH(0, 0, worldSize, worldSize), Paint()..color = Colors.green.shade900);
     for (var f in food) canvas.drawCircle(f, 10, Paint()..color = Colors.yellowAccent);
