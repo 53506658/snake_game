@@ -88,6 +88,7 @@ class _StartScreenState extends State<StartScreen> {
                   const Text("SNAKE PRO", style: TextStyle(color: Colors.orangeAccent, fontSize: 60, fontWeight: FontWeight.bold)),
                   Text("💰 Points: $totalPoints", style: const TextStyle(color: Colors.amber, fontSize: 20)),
                   const SizedBox(height: 30),
+                  const Text("SELECT SKIN", style: TextStyle(color: Colors.white70)),
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: skinLibrary.keys.map((name) => _skinCircle(name)).toList()),
                   const SizedBox(height: 40),
                   ElevatedButton(
@@ -205,10 +206,6 @@ class _SnakeIoProState extends State<SnakeIoPro> {
     gameLoop?.cancel(); bgPlayer.stop();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('totalPoints', (prefs.getInt('totalPoints') ?? 0) + player.length);
-    if (player.length > highScore) {
-      await prefs.setInt('highScore', player.length);
-      try { FirebaseFirestore.instance.collection('leaderboard').add({'name': 'Player', 'score': player.length}); } catch (e) {}
-    }
     if (_googleAd != null) _googleAd!.show(); else if (_yandexAd != null) _yandexAd!.show();
     if (!widget.isMuted) await fxPlayer.play(AssetSource('audio/die.wav'));
     Navigator.pop(context);
@@ -243,7 +240,7 @@ class GamePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // الكاميرا تتبع الرأس بدقة لمنع اللون الأبيض
+    // الكاميرا تتبع اللاعب بدقة تامة وتمنع المنطقة البيضاء
     canvas.translate(sz.width / 2 - player.body.first.dx, sz.height / 2 - player.body.first.dy);
     canvas.drawRect(Rect.fromLTWH(0, 0, worldSize, worldSize), Paint()..color = Colors.green.shade900);
     for (var f in food) canvas.drawCircle(f, 10, Paint()..color = Colors.yellowAccent);
