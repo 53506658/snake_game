@@ -33,7 +33,6 @@ class _StartScreenState extends State<StartScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() { highScore = prefs.getInt('highScore') ?? 0; });
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -66,7 +65,6 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   late Snake player; List<Snake> bots = []; List<Offset> food = [];
   final double worldSize = 3000.0; Timer? gameLoop;
   ui.Image? head, body, tail;
-  int level = 1;
 
   @override
   void initState() {
@@ -104,7 +102,7 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   }
 
   void _move(Snake s) {
-    double spd = (s.isBoosting ? 8.0 : 4.0) + (level * 0.5);
+    double spd = (s.isBoosting ? 8.0 : 4.0);
     Offset next = Offset((s.body.first.dx + cos(s.angle)*spd).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*spd).clamp(0, worldSize));
     s.body.insert(0, next);
     if (s.body.length > s.length) s.body.removeLast();
@@ -131,7 +129,6 @@ class _SnakeIoProState extends State<SnakeIoPro> {
             onPanUpdate: (d) => setState(() => player.angle = atan2(d.localPosition.dy - s.height/2, d.localPosition.dx - s.width/2)),
             child: CustomPaint(size: Size.infinite, painter: GamePainter(player: player, bots: bots, food: food, sz: s, head: head, body: body, tail: tail)),
           ),
-          // زر السرعة (Boost)
           Positioned(
             bottom: 50, left: 30,
             child: GestureDetector(
@@ -158,21 +155,19 @@ class GamePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     canvas.translate(sz.width/2 - player.body.first.dx, sz.height/2 - player.body.first.dy);
     for (var f in food) canvas.drawCircle(f, 10, Paint()..color = Colors.yellowAccent);
-
     if (head != null && body != null && tail != null) {
       for (var b in bots) _drawSnake(canvas, b, b.color);
       _drawSnake(canvas, player, null);
     }
   }
 
-  void _drawSnake(Canvas canvas, Snake s, Color? color) {
+  void _drawSnake(Canvas canvas, Snake s, Color? colorFilter) {
     for (int i = s.body.length - 1; i >= 0; i--) {
-      if (i % 12 != 0 && i != 0) continue; // زيادة التباعد لجعل الحركة انسيابية
+      if (i % 12 != 0 && i != 0) continue; 
       canvas.save();
       canvas.translate(s.body[i].dx, s.body[i].dy);
       Paint p = Paint();
-      if (color != null) p.colorFilter = ColorFilter.mode(color, BlendMode.modulate);
-      
+      if (colorFilter != null) p.colorFilter = ColorFilter.mode(colorFilter, BlendMode.modulate);
       if (i == 0) {
         canvas.rotate(s.angle + pi/2);
         _draw(canvas, head!, 65, p);
@@ -183,7 +178,16 @@ class GamePainter extends CustomPainter {
     }
   }
 
-  void _draw(Canvas c, ui.Image i, double s, Paint p) => paintImage(canvas: c, rect: Rect.fromCenter(center: Offset.zero, width: s, height: s), image: i, paint: p);
+  void _draw(Canvas c, ui.Image i, double s, Paint p) {
+    paintImage(
+      canvas: c, 
+      rect: Rect.fromCenter(center: Offset.zero, width: s, height: s), 
+      image: i, 
+      colorFilter: p.colorFilter, // تم الإصلاح هنا
+      fit: BoxFit.contain,
+    );
+  }
+
   @override
-  bool shouldRepaint(CustomPainter old) => true;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
