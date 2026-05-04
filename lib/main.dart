@@ -2,16 +2,22 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+// إعلانات جوجل
 import 'package:google_mobile_ads/google_mobile_ads.dart' as google;
-import 'package:yandex_mobileads_sdk/yandex_mobileads_sdk.dart' as yandex;
+// إعلانات ياندكس (تم تصحيح المسار تماماً هنا)
+import 'package:yandex_mobileads/yandex_mobileads.dart' as yandex; 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // مكتبة لوحة الصدارة
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  // تهيئة إعلانات جوجل وياندكس
   await google.MobileAds.instance.initialize();
-  yandex.MobileAds.initialize();
+  yandex.MobileAds.initialize(); 
+  
   runApp(MaterialApp(home: StartScreen(), debugShowCheckedModeBanner: false));
 }
 
@@ -31,7 +37,7 @@ class StartScreen extends StatefulWidget {
 }
 
 class _StartScreenState extends State<StartScreen> {
-  int highScore = 0, totalPoints = 0, applesEatenToday = 0;
+  int highScore = 0, totalPoints = 0;
   Color selectedColor = Colors.orange;
   List<String> unlockedSkins = ['orange'];
   bool isMuted = false;
@@ -50,7 +56,10 @@ class _StartScreenState extends State<StartScreen> {
       adUnitId: 'ca-app-pub-3940256099942544/6300978111',
       size: google.AdSize.banner,
       request: const google.AdRequest(),
-      listener: google.BannerAdListener(onAdLoaded: (_) => setState(() => _isBannerAdLoaded = true), onAdFailedToLoad: (ad, e) => ad.dispose()),
+      listener: google.BannerAdListener(
+        onAdLoaded: (_) => setState(() => _isBannerAdLoaded = true),
+        onAdFailedToLoad: (ad, e) => ad.dispose(),
+      ),
     )..load();
   }
 
@@ -59,57 +68,22 @@ class _StartScreenState extends State<StartScreen> {
     setState(() {
       highScore = prefs.getInt('highScore') ?? 0;
       totalPoints = prefs.getInt('totalPoints') ?? 0;
-      applesEatenToday = prefs.getInt('applesToday') ?? 0;
       unlockedSkins = prefs.getStringList('unlockedSkins') ?? ['orange'];
       selectedColor = skinLibrary[prefs.getString('selectedSkin') ?? 'orange']!;
     });
   }
 
-  // --- لوحة الصدارة العالمية ---
-  void _showLeaderboard() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.black87,
-      builder: (ctx) => StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('leaderboard').orderBy('score', descending: true).limit(10).snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          return ListView.builder(
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (c, i) {
-              var data = snapshot.data!.docs[i];
-              return ListTile(
-                leading: Text("#${i + 1}", style: const TextStyle(color: Colors.amber, fontSize: 18)),
-                title: Text(data['name'], style: const TextStyle(color: Colors.white)),
-                trailing: Text("${data['score']}", style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  // --- نظام المهمات اليومية ---
-  void _showMissions() {
-    showDialog(
-      context: context,
-      builder: (c) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: const Text("Daily Missions", style: TextStyle(color: Colors.orange)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text("Eat 20 Apples", style: TextStyle(color: Colors.white)),
-              subtitle: Text("Progress: $applesEatenToday / 20", style: const TextStyle(color: Colors.grey)),
-              trailing: applesEatenToday >= 20 ? const Icon(Icons.check_circle, color: Colors.green) : const Text("50 pts"),
-            ),
-          ],
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("CLOSE"))],
-      ),
-    );
+  void _buySkin(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (unlockedSkins.contains(name)) {
+      setState(() => selectedColor = skinLibrary[name]!);
+      await prefs.setString('selectedSkin', name);
+    } else if (totalPoints >= 500) {
+      setState(() { totalPoints -= 500; unlockedSkins.add(name); selectedColor = skinLibrary[name]!; });
+      await prefs.setInt('totalPoints', totalPoints);
+      await prefs.setStringList('unlockedSkins', unlockedSkins);
+      await prefs.setString('selectedSkin', name);
+    }
   }
 
   @override
@@ -121,21 +95,13 @@ class _StartScreenState extends State<StartScreen> {
           Center(
             child: SingleChildScrollView(
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text("SNAKE PRO", style: TextStyle(color: Colors.orangeAccent, fontSize: 60, fontWeight: FontWeight.bold)),
                   Text("💰 Points: $totalPoints", style: const TextStyle(color: Colors.amber, fontSize: 20)),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(icon: const Icon(Icons.leaderboard, color: Colors.blue, size: 35), onPressed: _showLeaderboard),
-                      const SizedBox(width: 20),
-                      IconButton(icon: const Icon(Icons.assignment, color: Colors.green, size: 35), onPressed: _showMissions),
-                    ],
-                  ),
                   const SizedBox(height: 30),
-                  const Text("Store (Tap to select/buy)", style: TextStyle(color: Colors.white70)),
-                  SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: skinLibrary.keys.map((name) => _skinCircle(name)).toList())),
+                  const Text("SKINS STORE", style: TextStyle(color: Colors.white70)),
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: skinLibrary.keys.map((name) => _skinCircle(name)).toList()),
                   const SizedBox(height: 40),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 20), shape: const StadiumBorder()),
@@ -146,7 +112,8 @@ class _StartScreenState extends State<StartScreen> {
               ),
             ),
           ),
-          if (_isBannerAdLoaded) Positioned(bottom: 0, width: MediaQuery.of(context).size.width, height: 50, child: AdWidget(ad: _bannerAd!)),
+          // تم استخدام البادئة google. لحل مشكلة AdWidget
+          if (_isBannerAdLoaded) Positioned(bottom: 0, width: MediaQuery.of(context).size.width, height: 50, child: google.AdWidget(ad: _bannerAd!)),
         ],
       ),
     );
@@ -155,27 +122,19 @@ class _StartScreenState extends State<StartScreen> {
   Widget _skinCircle(String name) {
     bool unlocked = unlockedSkins.contains(name);
     return GestureDetector(
-      onTap: () async {
-        final prefs = await SharedPreferences.getInstance();
-        if (unlocked) {
-          setState(() => selectedColor = skinLibrary[name]!);
-          await prefs.setString('selectedSkin', name);
-        } else if (totalPoints >= 500) {
-          setState(() { totalPoints -= 500; unlockedSkins.add(name); });
-          await prefs.setInt('totalPoints', totalPoints);
-          await prefs.setStringList('unlockedSkins', unlockedSkins);
-        }
-      },
+      onTap: () => _buySkin(name),
       child: Container(
-        margin: const EdgeInsets.all(10),
+        margin: const EdgeInsets.all(8),
         decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: selectedColor == skinLibrary[name] ? Colors.white : Colors.transparent, width: 3)),
-        child: CircleAvatar(backgroundColor: skinLibrary[name], radius: 25, child: unlocked ? null : const Icon(Icons.lock, size: 18, color: Colors.white)),
+        child: CircleAvatar(backgroundColor: skinLibrary[name], radius: 20, child: unlocked ? null : const Icon(Icons.lock, size: 15, color: Colors.white)),
       ),
     );
   }
+
+  @override
+  void dispose() { _bannerAd?.dispose(); super.dispose(); }
 }
 
-// --- شاشة اللعبة ---
 class SnakeIoPro extends StatefulWidget {
   final Color color; final bool isMuted;
   SnakeIoPro({required this.color, required this.isMuted});
@@ -188,8 +147,9 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   final double worldSize = 5000.0; Timer? gameLoop;
   ui.Image? head, body;
   final AudioPlayer bgPlayer = AudioPlayer(), fxPlayer = AudioPlayer();
-  google.InterstitialAd? _googleAd; yandex.InterstitialAd? _yandexAd;
-  String bgImg = 'assets/forest.png'; int applesInSession = 0;
+  
+  google.InterstitialAd? _googleAd;
+  yandex.InterstitialAd? _yandexAd; // تصحيح النوع هنا ليطابق ياندكس
 
   @override
   void initState() {
@@ -203,8 +163,18 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   }
 
   void _loadDualAds() {
-    google.InterstitialAd.load(adUnitId: 'ca-app-pub-3940256099942544/1033173712', request: const google.AdRequest(), adLoadCallback: google.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null));
-    yandex.InterstitialAd.create(adUnitId: 'R-M-DEMO-interstitial', onAdLoaded: (ad) => _yandexAd = ad, onAdFailedToLoad: (e) => _yandexAd = null);
+    // تحميل إعلان جوجل
+    google.InterstitialAd.load(
+      adUnitId: 'ca-app-pub-3940256099942544/1033173712',
+      request: const google.AdRequest(),
+      adLoadCallback: google.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null),
+    );
+    // تحميل إعلان ياندكس
+    yandex.InterstitialAd.create(
+      adUnitId: 'R-M-DEMO-interstitial',
+      onAdLoaded: (ad) => _yandexAd = ad,
+      onAdFailedToLoad: (e) => _yandexAd = null,
+    );
   }
 
   void _playMusic() async { await bgPlayer.setReleaseMode(ReleaseMode.loop); await bgPlayer.play(AssetSource('audio/music.mp3')); await bgPlayer.setVolume(0.3); }
@@ -246,10 +216,7 @@ class _SnakeIoProState extends State<SnakeIoPro> {
     food.removeWhere((f) {
       if ((f - s.body.first).distance < 60) {
         s.length += 5;
-        if (s == player) {
-          applesInSession++;
-          if (!widget.isMuted) fxPlayer.play(AssetSource('audio/eat.mp3'), mode: PlayerMode.lowLatency);
-        }
+        if (s == player && !widget.isMuted) fxPlayer.play(AssetSource('audio/eat.mp3'));
         return true;
       }
       return false;
@@ -260,17 +227,11 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   void _end() async {
     gameLoop?.cancel(); bgPlayer.stop();
     final prefs = await SharedPreferences.getInstance();
-    int currentPoints = prefs.getInt('totalPoints') ?? 0;
-    int currentApples = prefs.getInt('applesToday') ?? 0;
-    await prefs.setInt('totalPoints', currentPoints + player.length);
-    await prefs.setInt('applesToday', currentApples + applesInSession);
-
-    // رفع السكور للوحة الصدارة (Firestore)
+    await prefs.setInt('totalPoints', (prefs.getInt('totalPoints') ?? 0) + player.length);
     if (player.length > (prefs.getInt('highScore') ?? 0)) {
       await prefs.setInt('highScore', player.length);
       FirebaseFirestore.instance.collection('leaderboard').add({'name': 'Player', 'score': player.length});
     }
-
     if (_googleAd != null) _googleAd!.show(); else if (_yandexAd != null) _yandexAd!.show();
     if (!widget.isMuted) await fxPlayer.play(AssetSource('audio/die.wav'));
     Navigator.pop(context);
@@ -285,7 +246,6 @@ class _SnakeIoProState extends State<SnakeIoPro> {
           CustomPaint(size: Size.infinite, painter: GamePainter(player: player, bots: bots, food: food, sz: s, head: head, body: body, worldSize: worldSize)),
           Positioned(bottom: 50, left: 50, child: _boostBtn()),
           Positioned(bottom: 50, right: 50, child: _controls()),
-          Positioned(top: 40, left: 20, child: Text("Score: ${player.length}", style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, backgroundColor: Colors.black45))),
         ],
       ),
     );
@@ -296,7 +256,7 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   Widget _btn(IconData i, double a) => GestureDetector(onTap: () => setState(() => player.targetAngle = a), child: Container(padding: const EdgeInsets.all(12), decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle), child: Icon(i, color: Colors.white, size: 35)));
 
   @override
-  void dispose() { gameLoop?.cancel(); bgPlayer.dispose(); fxPlayer.dispose(); super.dispose(); }
+  void dispose() { gameLoop?.cancel(); bgPlayer.dispose(); fxPlayer.dispose(); _googleAd?.dispose(); super.dispose(); }
 }
 
 class GamePainter extends CustomPainter {
@@ -305,6 +265,7 @@ class GamePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // الكاميرا تتبع اللاعب بدقة
     canvas.translate(sz.width / 2 - player.body.first.dx, sz.height / 2 - player.body.first.dy);
     canvas.drawRect(Rect.fromLTWH(0, 0, worldSize, worldSize), Paint()..color = Colors.green.shade900);
     for (var f in food) canvas.drawCircle(f, 10, Paint()..color = Colors.yellowAccent);
@@ -325,5 +286,5 @@ class GamePainter extends CustomPainter {
     }
   }
   @override
-  bool shouldRepaint(CustomPainter old) => true;
+  bool shouldRepaint(covariant CustomPainter old) => true;
 }
