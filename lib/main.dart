@@ -43,9 +43,7 @@ class _StartScreenState extends State<StartScreen> {
   google.BannerAd? _bannerAd;
   bool _isBannerAdLoaded = false;
 
-  final Map<String, Color> skinLibrary = {
-    'orange': Colors.orange, 'blue': Colors.blue, 'green': Colors.green, 'purple': Colors.purple, 'red': Colors.red,
-  };
+  final Map<String, Color> skinLibrary = {'orange': Colors.orange, 'blue': Colors.blue, 'green': Colors.green, 'purple': Colors.purple, 'red': Colors.red};
 
   @override
   void initState() { super.initState(); _loadData(); _loadBannerAd(); }
@@ -142,16 +140,9 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   }
 
   void _loadDualAds() {
-    google.InterstitialAd.load(
-      adUnitId: 'ca-app-pub-3940256099942544/1033173712',
-      request: const google.AdRequest(),
-      adLoadCallback: google.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null),
-    );
-    final loader = yandex.InterstitialAdLoader(
-      onAdLoaded: (ad) => setState(() => _yandexAd = ad),
-      onAdFailedToLoad: (error) => _yandexAd = null,
-    );
-    loader.loadAd(adRequestConfiguration: yandex.AdRequestConfiguration(adUnitId: 'R-M-DEMO-interstitial'));
+    google.InterstitialAd.load(adUnitId: 'ca-app-pub-3940256099942544/1033173712', request: const google.AdRequest(), adLoadCallback: google.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null));
+    final loader = yandex.InterstitialAdLoader(onAdLoaded: (ad) => setState(() => _yandexAd = ad), onAdFailedToLoad: (error) => _yandexAd = null);
+    loader.loadAd(adRequestConfiguration: const yandex.AdRequestConfiguration(adUnitId: 'R-M-DEMO-interstitial'));
   }
 
   void _playMusic() async { await bgPlayer.setReleaseMode(ReleaseMode.loop); await bgPlayer.play(AssetSource('audio/music.mp3')); await bgPlayer.setVolume(0.3); }
@@ -174,11 +165,7 @@ class _SnakeIoProState extends State<SnakeIoPro> {
       while (diff > pi) diff -= 2 * pi;
       player.angle += diff * 0.15;
       _move(player); _checkFood(player);
-      for (var b in bots) {
-        if (Random().nextInt(100) < 5) b.angle += (Random().nextDouble() - 0.5);
-        _move(b);
-        if ((player.body.first - b.body.first).distance < 45) _end();
-      }
+      for (var b in bots) { if (Random().nextInt(100) < 5) b.angle += (Random().nextDouble() - 0.5); _move(b); if ((player.body.first - b.body.first).distance < 45) _end(); }
     });
   }
 
@@ -189,26 +176,13 @@ class _SnakeIoProState extends State<SnakeIoPro> {
     if (s.body.length > s.length) { s.body.removeLast(); s.angles.removeLast(); }
   }
 
-  void _checkFood(Snake s) {
-    food.removeWhere((f) {
-      if ((f - s.body.first).distance < 60) {
-        s.length += 5;
-        if (s == player) fxPlayer.play(AssetSource('audio/eat.mp3'));
-        return true;
-      }
-      return false;
-    });
-    if (food.length < 200) food.add(Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize));
-  }
+  void _checkFood(Snake s) { food.removeWhere((f) { if ((f - s.body.first).distance < 60) { s.length += 5; if (s == player) fxPlayer.play(AssetSource('audio/eat.mp3')); return true; } return false; }); if (food.length < 200) food.add(Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize)); }
 
   void _end() async {
     gameLoop?.cancel(); bgPlayer.stop();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('totalPoints', (prefs.getInt('totalPoints') ?? 0) + player.length);
-    if (player.length > widget.currentHighScore) {
-      await prefs.setInt('highScore', player.length);
-      try { FirebaseFirestore.instance.collection('leaderboard').add({'name': 'Player', 'score': player.length}); } catch (e) {}
-    }
+    if (player.length > widget.currentHighScore) { await prefs.setInt('highScore', player.length); try { FirebaseFirestore.instance.collection('leaderboard').add({'name': 'Player', 'score': player.length}); } catch (e) {} }
     if (_googleAd != null) _googleAd!.show(); else if (_yandexAd != null) _yandexAd!.show();
     await fxPlayer.play(AssetSource('audio/die.wav'));
     Navigator.pop(context);
@@ -246,10 +220,7 @@ class GamePainter extends CustomPainter {
     canvas.translate(sz.width / 2 - player.body.first.dx, sz.height / 2 - player.body.first.dy);
     canvas.drawRect(Rect.fromLTWH(0, 0, worldSize, worldSize), Paint()..color = Colors.green.shade900);
     for (var f in food) canvas.drawCircle(f, 10, Paint()..color = Colors.yellowAccent);
-    if (head != null && body != null) {
-      for (var b in bots) _drawSnake(canvas, b, b.skinColor);
-      _drawSnake(canvas, player, player.skinColor);
-    }
+    if (head != null && body != null) { for (var b in bots) _drawSnake(canvas, b, b.skinColor); _drawSnake(canvas, player, player.skinColor); }
   }
 
   void _drawSnake(Canvas canvas, Snake s, Color? filter) {
@@ -262,6 +233,5 @@ class GamePainter extends CustomPainter {
       canvas.restore();
     }
   }
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => true;
+  @override bool shouldRepaint(covariant CustomPainter old) => true;
 }

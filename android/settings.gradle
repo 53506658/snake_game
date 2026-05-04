@@ -1,4 +1,22 @@
 pluginManagement {
+    def flutterSdkPath = {
+        def properties = new Properties()
+        def file = new File(settingsDir.parentFile, "local.properties")
+        if (file.exists()) {
+            properties.load(file.newDataInputStream())
+        }
+        def sdkPath = properties.getProperty("flutter.sdk")
+        if (sdkPath == null) {
+            sdkPath = System.getenv("FLUTTER_ROOT")
+        }
+        if (sdkPath == null) {
+            throw new GradleException("Flutter SDK not found.")
+        }
+        return sdkPath
+    }()
+
+    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+
     repositories {
         google()
         mavenCentral()
