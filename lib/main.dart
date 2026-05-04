@@ -11,51 +11,32 @@ void main() {
   runApp(MaterialApp(home: StartScreen(), debugShowCheckedModeBanner: false));
 }
 
-// كلاس الجزيئات للتأثير البصري عند الأكل
 class Particle {
-  Offset position;
-  Offset velocity;
-  Color color;
-  double life = 1.0; 
+  Offset position; Offset velocity; Color color; double life = 1.0;
   Particle({required this.position, required this.velocity, required this.color});
-  void update() {
-    position += velocity;
-    life -= 0.05;
-  }
+  void update() { position += velocity; life -= 0.05; }
 }
 
-// كلاس الثعبان
 class Snake {
-  String name;
-  List<Offset> body = [];
-  double angle = 0.0;
-  Color color;
-  int length = 20;
-  Snake({required this.name, required Offset startPos, required this.color}) {
+  List<Offset> body = []; double angle = 0.0; Color color; int length = 20;
+  Snake({required Offset startPos, required this.color}) {
     body = [startPos];
     angle = Random().nextDouble() * 2 * pi;
   }
 }
 
-// شاشة البداية
 class StartScreen extends StatefulWidget {
   @override
   _StartScreenState createState() => _StartScreenState();
 }
 
 class _StartScreenState extends State<StartScreen> {
-  int highScore = 0;
-  Color selectedColor = Colors.cyanAccent;
-  bool isMuted = false;
-  bool useArrows = false;
+  int highScore = 0; Color selectedColor = Colors.cyanAccent;
+  bool isMuted = false; bool useArrows = false;
 
   @override
-  void initState() {
-    super.initState();
-    _loadHighScore();
-  }
-
-  void _loadHighScore() async {
+  void initState() { super.initState(); _loadData(); }
+  void _loadData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() { highScore = prefs.getInt('highScore') ?? 0; });
   }
@@ -101,40 +82,26 @@ class _StartScreenState extends State<StartScreen> {
   }
 }
 
-// شاشة اللعبة الرئيسية
 class SnakeIoPro extends StatefulWidget {
-  final Color color;
-  final bool isMuted;
-  final int highScore;
-  final bool useArrows;
+  final Color color; final bool isMuted; final int highScore; final bool useArrows;
   SnakeIoPro({required this.color, required this.isMuted, required this.highScore, required this.useArrows});
-
   @override
   _SnakeIoProState createState() => _SnakeIoProState();
 }
 
 class _SnakeIoProState extends State<SnakeIoPro> {
-  late Snake player;
-  List<Snake> bots = [];
-  List<Offset> food = [];
-  List<Particle> particles = [];
-  final double worldSize = 3000.0;
-  Timer? gameLoop;
-  final AudioPlayer bgMusicPlayer = AudioPlayer();
-  final AudioPlayer effectPlayer = AudioPlayer();
+  late Snake player; List<Snake> bots = []; List<Offset> food = []; List<Particle> particles = [];
+  final double worldSize = 3000.0; Timer? gameLoop;
+  final AudioPlayer bgMusicPlayer = AudioPlayer(); final AudioPlayer effectPlayer = AudioPlayer();
 
   @override
   void initState() {
     super.initState();
-    player = Snake(name: "You", startPos: Offset(1500, 1500), color: widget.color);
-    _initBots();
+    player = Snake(startPos: Offset(1500, 1500), color: widget.color);
+    bots = List.generate(6, (i) => Snake(startPos: Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize), color: Colors.redAccent));
     food = List.generate(150, (i) => Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize));
     gameLoop = Timer.periodic(Duration(milliseconds: 16), (t) => updateGame());
     if (!widget.isMuted) _playBackgroundMusic();
-  }
-
-  void _initBots() {
-    bots = List.generate(6, (i) => Snake(name: "Bot", startPos: Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize), color: Colors.redAccent));
   }
 
   void _playBackgroundMusic() async {
@@ -146,14 +113,12 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   void updateGame() {
     if (!mounted) return;
     setState(() {
-      moveSnake(player);
-      checkFood(player);
+      moveSnake(player); checkFood(player);
       for (var p in particles) p.update();
       particles.removeWhere((p) => p.life <= 0);
       for (var bot in bots) {
         if (Random().nextInt(100) < 5) bot.angle += (Random().nextDouble() - 0.5);
-        moveSnake(bot);
-        checkFood(bot);
+        moveSnake(bot); checkFood(bot);
         if ((player.body.first - bot.body.first).distance < 25) _gameOver();
       }
     });
@@ -231,11 +196,7 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   Widget _arrowBtn(IconData icon, double angle) {
     return GestureDetector(
       onTap: () => setState(() => player.angle = angle),
-      child: Container(
-        padding: EdgeInsets.all(10),
-        decoration: BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
-        child: Icon(icon, color: Colors.white, size: 30),
-      ),
+      child: Container(padding: EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.white24, shape: BoxShape.circle), child: Icon(icon, color: Colors.white, size: 30)),
     );
   }
 
@@ -243,11 +204,9 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   void dispose() { bgMusicPlayer.dispose(); effectPlayer.dispose(); gameLoop?.cancel(); super.dispose(); }
 }
 
-// كلاس الرسام
 class WorldPainter extends CustomPainter {
   final Snake player; final List<Snake> bots; final List<Offset> food; final List<Particle> particles; final Size screenSize; final double worldSize;
   WorldPainter({required this.player, required this.bots, required this.food, required this.particles, required this.screenSize, required this.worldSize});
-  
   @override
   void paint(Canvas canvas, Size size) {
     canvas.translate(screenSize.width/2 - player.body.first.dx, screenSize.height/2 - player.body.first.dy);
@@ -258,7 +217,6 @@ class WorldPainter extends CustomPainter {
     for (var bot in bots) _drawSnake(canvas, bot);
     _drawSnake(canvas, player);
   }
-
   void _drawSnake(Canvas canvas, Snake s) {
     Paint p = Paint()..color = s.color..strokeWidth = 22..strokeCap = StrokeCap.round..style = PaintingStyle.stroke;
     Path path = Path()..moveTo(s.body.first.dx, s.body.first.dy);
@@ -266,7 +224,6 @@ class WorldPainter extends CustomPainter {
     canvas.drawPath(path, p);
     canvas.drawCircle(s.body.first, 15, Paint()..color = s.color);
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
