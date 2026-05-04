@@ -9,20 +9,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  google_mobile_ads: ^5.1.0  # تمت إضافة المكتبة هنا بشكل صحيح
+  google_mobile_ads: ^5.1.0
+  audioplayers: ^5.2.1
+  shared_preferences: ^2.2.2
   cupertino_icons: ^1.0.6
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_launcher_icons: "^0.13.1"
-
-flutter_launcher_icons:
-  android: true
-  ios: true
-  image_path: "assets/icon/game_icon.png"
 
 flutter:
   uses-material-design: true
   assets:
+    - assets/audio/
     - assets/icon/
