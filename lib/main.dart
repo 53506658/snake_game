@@ -2,9 +2,8 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-// حل تضارب الأسماء باستخدام Aliases
 import 'package:google_mobile_ads/google_mobile_ads.dart' as google;
-import 'package:yandex_mobileads/yandex_mobileads.dart' as yandex;
+import 'package:yandex_mobileads/yandex_mobileads.dart' as yandex_ads;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,9 +14,9 @@ void main() async {
   try {
     await Firebase.initializeApp();
     await google.MobileAds.instance.initialize();
-    yandex.MobileAds.initialize();
+    yandex_ads.MobileAds.initialize(); 
   } catch (e) {
-    debugPrint("Initialization Error: $e");
+    debugPrint("Init Error: $e");
   }
   runApp(MaterialApp(home: StartScreen(), debugShowCheckedModeBanner: false));
 }
@@ -82,20 +81,22 @@ class _StartScreenState extends State<StartScreen> {
       body: Stack(
         children: [
           Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text("SNAKE PRO", style: TextStyle(color: Colors.orangeAccent, fontSize: 60, fontWeight: FontWeight.bold)),
-                Text("💰 Points: $totalPoints", style: const TextStyle(color: Colors.amber, fontSize: 20)),
-                const SizedBox(height: 30),
-                Row(mainAxisAlignment: MainAxisAlignment.center, children: skinLibrary.keys.map((name) => _skinCircle(name)).toList()),
-                const SizedBox(height: 40),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 20), shape: const StadiumBorder()),
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => SnakeIoPro(color: selectedColor, isMuted: isMuted))).then((_) => _loadData()),
-                  child: const Text("PLAY", style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold)),
-                ),
-              ],
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("SNAKE PRO", style: TextStyle(color: Colors.orangeAccent, fontSize: 60, fontWeight: FontWeight.bold)),
+                  Text("💰 Points: $totalPoints", style: const TextStyle(color: Colors.amber, fontSize: 20)),
+                  const SizedBox(height: 30),
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: skinLibrary.keys.map((name) => _skinCircle(name)).toList()),
+                  const SizedBox(height: 40),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 20), shape: const StadiumBorder()),
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => SnakeIoPro(color: selectedColor, isMuted: isMuted))).then((_) => _loadData()),
+                    child: const Text("PLAY", style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
             ),
           ),
           if (_isBannerAdLoaded) Positioned(bottom: 0, width: s.width, height: 50, child: google.AdWidget(ad: _bannerAd!)),
@@ -129,9 +130,8 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   final double worldSize = 5000.0; Timer? gameLoop;
   ui.Image? head, body;
   final AudioPlayer bgPlayer = AudioPlayer(), fxPlayer = AudioPlayer();
-  
   google.InterstitialAd? _googleAd;
-  yandex.InterstitialAd? _yandexAd;
+  yandex_ads.InterstitialAd? _yandexAd;
 
   @override
   void initState() {
@@ -145,18 +145,13 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   }
 
   void _loadDualAds() {
-    google.InterstitialAd.load(
-      adUnitId: 'ca-app-pub-3940256099942544/1033173712',
-      request: const google.AdRequest(),
-      adLoadCallback: google.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null),
-    );
+    google.InterstitialAd.load(adUnitId: 'ca-app-pub-3940256099942544/1033173712', request: const google.AdRequest(), adLoadCallback: google.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null));
     
-    // تحميل ياندكس 8.0 بأسلوب Aliases الصحيح
-    final loader = yandex.InterstitialAdLoader(
+    final loader = yandex_ads.InterstitialAdLoader(
       onAdLoaded: (ad) => setState(() => _yandexAd = ad),
       onAdFailedToLoad: (error) => _yandexAd = null,
     );
-    loader.loadAd(adRequestConfiguration: yandex.AdRequestConfiguration(adUnitId: 'R-M-DEMO-interstitial'));
+    loader.loadAd(adRequestConfiguration: yandex_ads.AdRequestConfiguration(adUnitId: 'R-M-DEMO-interstitial'));
   }
 
   void _playMusic() async { await bgPlayer.setReleaseMode(ReleaseMode.loop); await bgPlayer.play(AssetSource('audio/music.mp3')); await bgPlayer.setVolume(0.3); }
@@ -189,8 +184,8 @@ class _SnakeIoProState extends State<SnakeIoPro> {
 
   void _move(Snake s) {
     double spd = (s.isBoosting ? 12.0 : 6.0);
-    Offset next = Offset((s.body.first.dx + cos(s.angle)*spd).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*spd).clamp(0, worldSize));
-    s.body.insert(0, next); s.angles.insert(0, s.angle);
+    s.body.insert(0, Offset((s.body.first.dx + cos(s.angle)*spd).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*spd).clamp(0, worldSize)));
+    s.angles.insert(0, s.angle);
     if (s.body.length > s.length) { s.body.removeLast(); s.angles.removeLast(); }
   }
 
@@ -210,7 +205,7 @@ class _SnakeIoProState extends State<SnakeIoPro> {
     gameLoop?.cancel(); bgPlayer.stop();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('totalPoints', (prefs.getInt('totalPoints') ?? 0) + player.length);
-    if (player.length > (prefs.getInt('highScore') ?? 0)) {
+    if (player.length > highScore) {
       await prefs.setInt('highScore', player.length);
       try { FirebaseFirestore.instance.collection('leaderboard').add({'name': 'Player', 'score': player.length}); } catch (e) {}
     }
@@ -228,6 +223,7 @@ class _SnakeIoProState extends State<SnakeIoPro> {
           CustomPaint(size: Size.infinite, painter: GamePainter(player: player, bots: bots, food: food, sz: s, head: head, body: body, worldSize: worldSize)),
           Positioned(bottom: 50, left: 50, child: _boostBtn()),
           Positioned(bottom: 50, right: 50, child: _controls()),
+          Positioned(top: 40, left: 20, child: Text("Score: ${player.length}", style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, backgroundColor: Colors.black45))),
         ],
       ),
     );
@@ -247,7 +243,7 @@ class GamePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // الكاميرا تتبع اللاعب وتمنع بياض الخلفية
+    // الكاميرا تتبع الرأس بدقة لمنع اللون الأبيض
     canvas.translate(sz.width / 2 - player.body.first.dx, sz.height / 2 - player.body.first.dy);
     canvas.drawRect(Rect.fromLTWH(0, 0, worldSize, worldSize), Paint()..color = Colors.green.shade900);
     for (var f in food) canvas.drawCircle(f, 10, Paint()..color = Colors.yellowAccent);
