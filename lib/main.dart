@@ -3,7 +3,6 @@ import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -12,32 +11,22 @@ void main() {
   runApp(MaterialApp(home: StartScreen(), debugShowCheckedModeBanner: false));
 }
 
-// كلاس الجزيئات (الانفجار عند الأكل)
-class Particle {
-  Offset position; Offset velocity; Color color; double life = 1.0;
-  Particle({required this.position, required this.velocity, required this.color});
-  void update() { position += velocity; life -= 0.05; }
-}
-
-// كلاس الثعبان
 class Snake {
-  List<Offset> body = []; double angle = 0.0; Color color; int length = 20;
+  List<Offset> body = []; double angle = 0.0; Color color; int length = 50;
+  bool isBoosting = false;
   Snake({required Offset startPos, required this.color}) {
-    body = [startPos];
+    body = List.generate(length, (index) => startPos);
     angle = Random().nextDouble() * 2 * pi;
   }
 }
 
-// شاشة البداية
 class StartScreen extends StatefulWidget {
   @override
   _StartScreenState createState() => _StartScreenState();
 }
 
 class _StartScreenState extends State<StartScreen> {
-  int highScore = 0; Color selectedColor = Colors.orangeAccent;
-  bool isMuted = false; bool useArrows = false;
-
+  int highScore = 0;
   @override
   void initState() { super.initState(); _loadData(); }
   void _loadData() async {
@@ -48,279 +37,153 @@ class _StartScreenState extends State<StartScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black87,
+      backgroundColor: Colors.black,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text("SNAKE IO PRO", style: TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.bold)),
-            Text("🏆 High Score: $highScore", style: TextStyle(color: Colors.amber, fontSize: 18)),
-            SizedBox(height: 50),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _iconSetting("Sound", isMuted ? Icons.volume_off : Icons.volume_up, () => setState(() => isMuted = !isMuted)),
-                SizedBox(width: 40),
-                _iconSetting("Control", useArrows ? Icons.ads_click : Icons.touch_app, () => setState(() => useArrows = !useArrows)),
-              ],
-            ),
-            SizedBox(height: 50),
+            Text("SNAKE", style: TextStyle(color: Colors.orangeAccent, fontSize: 80, fontWeight: FontWeight.bold, letterSpacing: 10)),
+            Text("🏆 BEST: $highScore", style: TextStyle(color: Colors.white70, fontSize: 18)),
+            SizedBox(height: 60),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: EdgeInsets.symmetric(horizontal: 60, vertical: 20)),
-              onPressed: () => Navigator.push(context, MaterialPageRoute(
-                builder: (c) => SnakeIoPro(color: selectedColor, isMuted: isMuted, highScore: highScore, useArrows: useArrows)
-              )),
-              child: Text("PLAY NOW", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: EdgeInsets.symmetric(horizontal: 80, vertical: 20), shape: StadiumBorder()),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => SnakeIoPro())),
+              child: Text("PLAY", style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
       ),
     );
   }
-
-  Widget _iconSetting(String label, IconData icon, VoidCallback onTap) {
-    return Column(children: [
-      Text(label, style: TextStyle(color: Colors.white70, fontSize: 12)),
-      IconButton(icon: Icon(icon, color: Colors.white, size: 30), onPressed: onTap),
-    ]);
-  }
 }
 
-// شاشة اللعبة الأساسية
 class SnakeIoPro extends StatefulWidget {
-  final Color color; final bool isMuted; final int highScore; final bool useArrows;
-  SnakeIoPro({required this.color, required this.isMuted, required this.highScore, required this.useArrows});
   @override
   _SnakeIoProState createState() => _SnakeIoProState();
 }
 
 class _SnakeIoProState extends State<SnakeIoPro> {
-  late Snake player; List<Snake> bots = []; List<Offset> food = []; List<Particle> particles = [];
+  late Snake player; List<Snake> bots = []; List<Offset> food = [];
   final double worldSize = 3000.0; Timer? gameLoop;
-  final AudioPlayer bgMusicPlayer = AudioPlayer(); final AudioPlayer effectPlayer = AudioPlayer();
-  
-  // متغيرات الصور والإعلانات والمستويات
-  ui.Image? headImg; ui.Image? bodyImg; ui.Image? tailImg;
-  InterstitialAd? _interstitialAd;
-  int currentLevel = 1;
-  String currentBg = 'assets/forest.png';
+  ui.Image? head, body, tail;
+  int level = 1;
 
   @override
   void initState() {
     super.initState();
-    player = Snake(startPos: Offset(1500, 1500), color: widget.color);
-    bots = List.generate(5, (i) => Snake(startPos: Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize), color: Colors.redAccent));
+    player = Snake(startPos: Offset(1500, 1500), color: Colors.transparent);
+    bots = List.generate(5, (i) => Snake(startPos: Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize), color: [Colors.blue, Colors.green, Colors.purple][i%3]));
     food = List.generate(150, (i) => Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize));
-    
-    _loadSnakeImages();
-    _loadInterstitialAd();
-    
+    _loadAssets();
     gameLoop = Timer.periodic(Duration(milliseconds: 16), (t) => updateGame());
-    if (!widget.isMuted) _playBackgroundMusic();
   }
 
-  // تحميل صور الثعبان
-  Future<void> _loadSnakeImages() async {
-    headImg = await _loadUiImage('assets/head.png');
-    bodyImg = await _loadUiImage('assets/body.png');
-    tailImg = await _loadUiImage('assets/tail.png');
+  Future<void> _loadAssets() async {
+    head = await _getImg('assets/head.png');
+    body = await _getImg('assets/body.png');
+    tail = await _getImg('assets/tail.png');
     if(mounted) setState(() {});
   }
 
-  Future<ui.Image> _loadUiImage(String path) async {
-    final data = await DefaultAssetBundle.of(context).load(path);
-    final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
-    final frame = await codec.getNextFrame();
-    return frame.image;
-  }
-
-  // تحميل الإعلان البيني
-  void _loadInterstitialAd() {
-    InterstitialAd.load(
-      adUnitId: 'ca-app-pub-3940256099942544/1033173712', // تجريبي
-      request: AdRequest(),
-      adLoadCallback: InterstitialAdLoadCallback(
-        onAdLoaded: (ad) => _interstitialAd = ad,
-        onAdFailedToLoad: (err) => _interstitialAd = null,
-      ),
-    );
-  }
-
-  void _playBackgroundMusic() async {
-    await bgMusicPlayer.setReleaseMode(ReleaseMode.loop);
-    await bgMusicPlayer.play(AssetSource('audio/music.mp3'));
-    await bgMusicPlayer.setVolume(0.2);
+  Future<ui.Image> _getImg(String p) async {
+    final d = await DefaultAssetBundle.of(context).load(p);
+    final c = await ui.instantiateImageCodec(d.buffer.asUint8List(), targetWidth: 100);
+    return (await c.getNextFrame()).image;
   }
 
   void updateGame() {
     if (!mounted) return;
     setState(() {
-      moveSnake(player); 
-      checkFood(player);
-      _checkLevelProgress();
-      for (var p in particles) p.update();
-      particles.removeWhere((p) => p.life <= 0);
-      
-      for (var bot in bots) {
-        if (Random().nextInt(100) < 5) bot.angle += (Random().nextDouble() - 0.5);
-        moveSnake(bot);
-        checkFood(bot);
-        if ((player.body.first - bot.body.first).distance < 30) _gameOver();
+      _move(player); _checkFood(player);
+      for (var b in bots) {
+        if (Random().nextInt(100) < 5) b.angle += (Random().nextDouble() - 0.5);
+        _move(b); _checkFood(b);
+        if ((player.body.first - b.body.first).distance < 45) _end();
       }
     });
   }
 
-  void _checkLevelProgress() {
-    if (player.length > 50 && currentLevel == 1) {
-      currentLevel = 2; currentBg = 'assets/desert.jpg';
-    } else if (player.length > 100 && currentLevel == 2) {
-      currentLevel = 3; currentBg = 'assets/snow.jpg';
-    }
-  }
-
-  void moveSnake(Snake s) {
-    double speed = 4.0 + (currentLevel * 0.5);
-    Offset newHead = Offset((s.body.first.dx + cos(s.angle)*speed).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*speed).clamp(0, worldSize));
-    s.body.insert(0, newHead);
+  void _move(Snake s) {
+    double spd = (s.isBoosting ? 8.0 : 4.0) + (level * 0.5);
+    Offset next = Offset((s.body.first.dx + cos(s.angle)*spd).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*spd).clamp(0, worldSize));
+    s.body.insert(0, next);
     if (s.body.length > s.length) s.body.removeLast();
   }
 
-  void checkFood(Snake s) {
+  void _checkFood(Snake s) {
     food.removeWhere((f) {
-      if ((f - s.body.first).distance < 35) {
-        s.length += 3;
-        if (s == player) {
-          _createExplosion(f, Colors.orange);
-          if (!widget.isMuted) effectPlayer.play(AssetSource('audio/eat.mp3'));
-        }
-        return true;
-      }
+      if ((f - s.body.first).distance < 50) { s.length += 2; return true; }
       return false;
     });
     if (food.length < 150) food.add(Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize));
   }
 
-  void _createExplosion(Offset pos, Color color) {
-    for (int i = 0; i < 10; i++) {
-      double angle = Random().nextDouble() * 2 * pi;
-      particles.add(Particle(position: pos, velocity: Offset(cos(angle)*3, sin(angle)*3), color: color));
-    }
-  }
-
-  void _gameOver() {
-    gameLoop?.cancel();
-    if (!widget.isMuted) effectPlayer.play(AssetSource('audio/die.wav'));
-    
-    // إظهار الإعلان
-    if (_interstitialAd != null) _interstitialAd!.show();
-
-    if (player.length > widget.highScore) {
-      SharedPreferences.getInstance().then((p) => p.setInt('highScore', player.length));
-    }
-    
-    showDialog(context: context, barrierDismissible: false, builder: (ctx) => AlertDialog(
-      title: Text("GAME OVER"),
-      content: Text("Level Reached: $currentLevel\nScore: ${player.length}"),
-      actions: [TextButton(onPressed: () { bgMusicPlayer.stop(); Navigator.pop(context); Navigator.pop(context); }, child: Text("EXIT"))],
-    ));
-  }
+  void _end() { gameLoop?.cancel(); Navigator.pop(context); }
 
   @override
   Widget build(BuildContext context) {
-    Size sz = MediaQuery.of(context).size;
+    Size s = MediaQuery.of(context).size;
     return Scaffold(
       body: Stack(
         children: [
-          // الخلفية المتغيرة حسب المستوى
-          Positioned.fill(child: Image.asset(currentBg, fit: BoxFit.cover)),
-          
+          Positioned.fill(child: Image.asset('assets/forest.png', fit: BoxFit.cover)),
           GestureDetector(
-            onPanUpdate: widget.useArrows ? null : (d) => setState(() {
-              player.angle = atan2(d.localPosition.dy - sz.height/2, d.localPosition.dx - sz.width/2);
-            }),
-            child: CustomPaint(
-              size: Size.infinite, 
-              painter: WorldPainter(
-                player: player, bots: bots, food: food, particles: particles, 
-                sz: sz, head: headImg, body: bodyImg, tail: tailImg
-              )
+            onPanUpdate: (d) => setState(() => player.angle = atan2(d.localPosition.dy - s.height/2, d.localPosition.dx - s.width/2)),
+            child: CustomPaint(size: Size.infinite, painter: GamePainter(player: player, bots: bots, food: food, sz: s, head: head, body: body, tail: tail)),
+          ),
+          // زر السرعة (Boost)
+          Positioned(
+            bottom: 50, left: 30,
+            child: GestureDetector(
+              onTapDown: (_) => setState(() => player.isBoosting = true),
+              onTapUp: (_) => setState(() => player.isBoosting = false),
+              child: Container(padding: EdgeInsets.all(20), decoration: BoxDecoration(color: Colors.orange.withOpacity(0.5), shape: BoxShape.circle), child: Icon(Icons.bolt, color: Colors.white, size: 40)),
             ),
           ),
-          if (widget.useArrows) _buildArrows(),
-          Positioned(top: 50, left: 20, child: Container(
-            padding: EdgeInsets.all(8), color: Colors.black54,
-            child: Text("Score: ${player.length} | Level: $currentLevel", style: TextStyle(color: Colors.white, fontSize: 16))
-          )),
         ],
       ),
     );
   }
 
-  Widget _buildArrows() {
-    return Positioned(bottom: 50, right: 30, child: Column(children: [
-      _arrowBtn(Icons.arrow_upward, -pi/2),
-      Row(children: [_arrowBtn(Icons.arrow_back, pi), SizedBox(width: 40), _arrowBtn(Icons.arrow_forward, 0)]),
-      _arrowBtn(Icons.arrow_downward, pi/2),
-    ]));
-  }
-
-  Widget _arrowBtn(IconData icon, double angle) {
-    return GestureDetector(
-      onTap: () => setState(() => player.angle = angle),
-      child: Container(padding: EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle), child: Icon(icon, color: Colors.white, size: 35)),
-    );
-  }
-
   @override
-  void dispose() { bgMusicPlayer.dispose(); effectPlayer.dispose(); gameLoop?.cancel(); _interstitialAd?.dispose(); super.dispose(); }
+  void dispose() { gameLoop?.cancel(); super.dispose(); }
 }
 
-// الرسام المسؤول عن عرض صور الثعبان
-class WorldPainter extends CustomPainter {
+class GamePainter extends CustomPainter {
   final Snake player; final List<Snake> bots; final List<Offset> food;
-  final List<Particle> particles; final Size sz;
-  final ui.Image? head; final ui.Image? body; final ui.Image? tail;
-
-  WorldPainter({required this.player, required this.bots, required this.food, required this.particles, required this.sz, this.head, this.body, this.tail});
+  final Size sz; final ui.Image? head, body, tail;
+  GamePainter({required this.player, required this.bots, required this.food, required this.sz, this.head, this.body, this.tail});
 
   @override
   void paint(Canvas canvas, Size size) {
-    Offset center = sz.center(Offset.zero);
-    canvas.translate(center.dx - player.body.first.dx, center.dy - player.body.first.dy);
+    canvas.translate(sz.width/2 - player.body.first.dx, sz.height/2 - player.body.first.dy);
+    for (var f in food) canvas.drawCircle(f, 10, Paint()..color = Colors.yellowAccent);
 
-    // رسم الطعام
-    for (var f in food) canvas.drawCircle(f, 8, Paint()..color = Colors.yellowAccent);
-
-    // رسم البوتات
-    for (var b in bots) {
-      for (var pos in b.body) canvas.drawCircle(pos, 12, Paint()..color = b.color);
-    }
-
-    // رسم اللاعب بالصور
     if (head != null && body != null && tail != null) {
-      for (int i = player.body.length - 1; i >= 0; i--) {
-        canvas.save();
-        canvas.translate(player.body[i].dx, player.body[i].dy);
-        
-        if (i == 0) {
-          canvas.rotate(player.angle + pi/2);
-          _drawImg(canvas, head!, 45);
-        } else if (i == player.body.length - 1) {
-          _drawImg(canvas, tail!, 35);
-        } else if (i % 6 == 0) {
-          _drawImg(canvas, body!, 32);
-        }
-        canvas.restore();
-      }
+      for (var b in bots) _drawSnake(canvas, b, b.color);
+      _drawSnake(canvas, player, null);
     }
-
-    for (var p in particles) canvas.drawCircle(p.position, 3, Paint()..color = p.color.withOpacity(p.life));
   }
 
-  void _drawImg(Canvas canvas, ui.Image img, double size) {
-    paintImage(canvas: canvas, rect: Rect.fromCenter(center: Offset.zero, width: size, height: size), image: img, fit: BoxFit.contain);
+  void _drawSnake(Canvas canvas, Snake s, Color? color) {
+    for (int i = s.body.length - 1; i >= 0; i--) {
+      if (i % 12 != 0 && i != 0) continue; // زيادة التباعد لجعل الحركة انسيابية
+      canvas.save();
+      canvas.translate(s.body[i].dx, s.body[i].dy);
+      Paint p = Paint();
+      if (color != null) p.colorFilter = ColorFilter.mode(color, BlendMode.modulate);
+      
+      if (i == 0) {
+        canvas.rotate(s.angle + pi/2);
+        _draw(canvas, head!, 65, p);
+      } else {
+        _draw(canvas, body!, 50, p);
+      }
+      canvas.restore();
+    }
   }
 
+  void _draw(Canvas c, ui.Image i, double s, Paint p) => paintImage(canvas: c, rect: Rect.fromCenter(center: Offset.zero, width: s, height: s), image: i, paint: p);
   @override
   bool shouldRepaint(CustomPainter old) => true;
 }
