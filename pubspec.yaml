@@ -1,5 +1,5 @@
 name: snake_game
-description: Final Stable Build - Snake IO Pro with Dual Ads & Leaderboard.
+description: Snake IO Pro with Google Ads only for maximum stability.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,9 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  google_mobile_ads: ^5.1.0
-  # استخدام إصدار مثبت ومستقر لتجنب خطأ "الملف غير موجود"
-  yandex_mobileads: 7.11.0 
+  # إعلانات جوجل فقط
+  google_mobile_ads: ^5.1.0 
   audioplayers: ^5.2.1
   shared_preferences: ^2.2.3
   firebase_core: ^2.24.2
@@ -23,22 +22,12 @@ dev_dependencies:
     sdk: flutter
   flutter_launcher_icons: ^0.13.1
 
-flutter_launcher_icons:
-  android: "launcher_icon"
-  ios: true
-  image_path: "assets/icon/game_icon.png"
-  min_sdk_android: 21
-
 flutter:
   uses-material-design: true
   assets:
     - assets/head.png
     - assets/body.png
     - assets/tail.png
-    - assets/forest.png
-    - assets/desert.jpg
-    - assets/snow.jpg
-    - assets/icon/game_icon.png
     - assets/audio/music.mp3
     - assets/audio/eat.mp3
     - assets/audio/die.wav
