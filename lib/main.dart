@@ -2,8 +2,9 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+// حل تضارب الأسماء باستخدام Aliases
 import 'package:google_mobile_ads/google_mobile_ads.dart' as google;
-import 'package:yandex_mobileads/yandex_mobileads.dart';
+import 'package:yandex_mobileads/yandex_mobileads.dart' as yandex;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -14,9 +15,9 @@ void main() async {
   try {
     await Firebase.initializeApp();
     await google.MobileAds.instance.initialize();
-    MobileAds.initialize();
+    yandex.MobileAds.initialize();
   } catch (e) {
-    debugPrint("Init Error: $e");
+    debugPrint("Initialization Error: $e");
   }
   runApp(MaterialApp(home: StartScreen(), debugShowCheckedModeBanner: false));
 }
@@ -128,8 +129,9 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   final double worldSize = 5000.0; Timer? gameLoop;
   ui.Image? head, body;
   final AudioPlayer bgPlayer = AudioPlayer(), fxPlayer = AudioPlayer();
+  
   google.InterstitialAd? _googleAd;
-  InterstitialAd? _yandexAd;
+  yandex.InterstitialAd? _yandexAd;
 
   @override
   void initState() {
@@ -137,15 +139,24 @@ class _SnakeIoProState extends State<SnakeIoPro> {
     player = Snake(startPos: const Offset(2500, 2500), skinColor: widget.color);
     bots = List.generate(5, (i) => Snake(startPos: Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize), skinColor: Colors.blue));
     food = List.generate(200, (i) => Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize));
-    _loadAssets(); _loadAds();
+    _loadAssets(); _loadDualAds();
     if (!widget.isMuted) _playMusic();
     gameLoop = Timer.periodic(const Duration(milliseconds: 16), (t) => updateGame());
   }
 
-  void _loadAds() {
-    google.InterstitialAd.load(adUnitId: 'ca-app-pub-3940256099942544/1033173712', request: const google.AdRequest(), adLoadCallback: google.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null));
-    final loader = InterstitialAdLoader(onAdLoaded: (ad) => setState(() => _yandexAd = ad), onAdFailedToLoad: (error) => _yandexAd = null);
-    loader.loadAd(adRequestConfiguration: const AdRequestConfiguration(adUnitId: 'R-M-DEMO-interstitial'));
+  void _loadDualAds() {
+    google.InterstitialAd.load(
+      adUnitId: 'ca-app-pub-3940256099942544/1033173712',
+      request: const google.AdRequest(),
+      adLoadCallback: google.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null),
+    );
+    
+    // تحميل ياندكس 8.0 بأسلوب Aliases الصحيح
+    final loader = yandex.InterstitialAdLoader(
+      onAdLoaded: (ad) => setState(() => _yandexAd = ad),
+      onAdFailedToLoad: (error) => _yandexAd = null,
+    );
+    loader.loadAd(adRequestConfiguration: yandex.AdRequestConfiguration(adUnitId: 'R-M-DEMO-interstitial'));
   }
 
   void _playMusic() async { await bgPlayer.setReleaseMode(ReleaseMode.loop); await bgPlayer.play(AssetSource('audio/music.mp3')); await bgPlayer.setVolume(0.3); }
@@ -178,8 +189,8 @@ class _SnakeIoProState extends State<SnakeIoPro> {
 
   void _move(Snake s) {
     double spd = (s.isBoosting ? 12.0 : 6.0);
-    s.body.insert(0, Offset((s.body.first.dx + cos(s.angle)*spd).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*spd).clamp(0, worldSize)));
-    s.angles.insert(0, s.angle);
+    Offset next = Offset((s.body.first.dx + cos(s.angle)*spd).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*spd).clamp(0, worldSize));
+    s.body.insert(0, next); s.angles.insert(0, s.angle);
     if (s.body.length > s.length) { s.body.removeLast(); s.angles.removeLast(); }
   }
 
@@ -199,6 +210,10 @@ class _SnakeIoProState extends State<SnakeIoPro> {
     gameLoop?.cancel(); bgPlayer.stop();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('totalPoints', (prefs.getInt('totalPoints') ?? 0) + player.length);
+    if (player.length > (prefs.getInt('highScore') ?? 0)) {
+      await prefs.setInt('highScore', player.length);
+      try { FirebaseFirestore.instance.collection('leaderboard').add({'name': 'Player', 'score': player.length}); } catch (e) {}
+    }
     if (_googleAd != null) _googleAd!.show(); else if (_yandexAd != null) _yandexAd!.show();
     if (!widget.isMuted) await fxPlayer.play(AssetSource('audio/die.wav'));
     Navigator.pop(context);
@@ -213,7 +228,6 @@ class _SnakeIoProState extends State<SnakeIoPro> {
           CustomPaint(size: Size.infinite, painter: GamePainter(player: player, bots: bots, food: food, sz: s, head: head, body: body, worldSize: worldSize)),
           Positioned(bottom: 50, left: 50, child: _boostBtn()),
           Positioned(bottom: 50, right: 50, child: _controls()),
-          Positioned(top: 40, left: 20, child: Text("Score: ${player.length}", style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, backgroundColor: Colors.black45))),
         ],
       ),
     );
@@ -233,6 +247,7 @@ class GamePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // الكاميرا تتبع اللاعب وتمنع بياض الخلفية
     canvas.translate(sz.width / 2 - player.body.first.dx, sz.height / 2 - player.body.first.dy);
     canvas.drawRect(Rect.fromLTWH(0, 0, worldSize, worldSize), Paint()..color = Colors.green.shade900);
     for (var f in food) canvas.drawCircle(f, 10, Paint()..color = Colors.yellowAccent);
