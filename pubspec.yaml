@@ -13,14 +13,14 @@ dependencies:
   # إعلانات جوجل (AdMob)
   google_mobile_ads: ^5.1.0
 
-  # إعلانات ياندكس (Yandex Ads) - الإضافة الجديدة
+  # إعلانات ياندكس (Yandex Ads SDK)
   yandex_mobileads_sdk: ^7.3.0
 
   # مكتبة الأصوات (الموسيقى وتأثيرات الأكل)
   audioplayers: ^5.2.1
 
   # مكتبة حفظ النقاط والترقيات والجلود محلياً
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.2.3
 
   # مكتبات لوحة الصدارة العالمية (Firebase)
   firebase_core: ^3.1.1
@@ -47,13 +47,17 @@ flutter:
 
   # تعريف جميع ملفات الوسائط (الصور والأصوات)
   assets:
+    # صور الثعبان
     - assets/head.png
     - assets/body.png
     - assets/tail.png
+    # صور الخلفيات
     - assets/forest.png
     - assets/desert.jpg
     - assets/snow.jpg
+    # الأيقونات
     - assets/icon/game_icon.png
+    # الأصوات (تأكد من وجود المجلد والملفات)
     - assets/audio/music.mp3
     - assets/audio/eat.mp3
     - assets/audio/die.wav
