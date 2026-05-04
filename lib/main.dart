@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart' as google;
-import 'package:yandex_mobileads/yandex_mobileads.dart' as yandex;
+import 'package:google_mobile_ads/google_mobile_ads.dart' as g_ads;
+import 'package:yandex_mobileads/yandex_mobileads.dart' as y_ads;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -13,8 +13,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await Firebase.initializeApp();
-    await google.MobileAds.instance.initialize();
-    yandex.MobileAds.initialize();
+    await g_ads.MobileAds.instance.initialize();
+    y_ads.MobileAds.initialize(); 
   } catch (e) {
     debugPrint("Init Error: $e");
   }
@@ -22,13 +22,9 @@ void main() async {
 }
 
 class Snake {
-  List<Offset> body = [];
-  List<double> angles = [];
+  List<Offset> body = []; List<double> angles = [];
   double angle = 0.0, targetAngle = 0.0;
-  int length;
-  bool isBoosting = false;
-  Color? skinColor;
-
+  int length; bool isBoosting = false; Color? skinColor;
   Snake({required Offset startPos, this.skinColor, this.length = 60}) {
     body = List.generate(length, (i) => startPos);
     angles = List.generate(length, (i) => 0.0);
@@ -44,7 +40,7 @@ class _StartScreenState extends State<StartScreen> {
   int highScore = 0, totalPoints = 0;
   Color selectedColor = Colors.orange;
   List<String> unlockedSkins = ['orange'];
-  google.BannerAd? _bannerAd;
+  g_ads.BannerAd? _bannerAd;
   bool _isBannerAdLoaded = false;
 
   final Map<String, Color> skinLibrary = {
@@ -55,11 +51,11 @@ class _StartScreenState extends State<StartScreen> {
   void initState() { super.initState(); _loadData(); _loadBannerAd(); }
 
   void _loadBannerAd() {
-    _bannerAd = google.BannerAd(
+    _bannerAd = g_ads.BannerAd(
       adUnitId: 'ca-app-pub-3940256099942544/6300978111',
-      size: google.AdSize.banner,
-      request: const google.AdRequest(),
-      listener: google.BannerAdListener(
+      size: g_ads.AdSize.banner,
+      request: const g_ads.AdRequest(),
+      listener: g_ads.BannerAdListener(
         onAdLoaded: (_) => setState(() => _isBannerAdLoaded = true),
         onAdFailedToLoad: (ad, e) => ad.dispose(),
       ),
@@ -94,13 +90,13 @@ class _StartScreenState extends State<StartScreen> {
                 const SizedBox(height: 40),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 20), shape: const StadiumBorder()),
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => SnakeIoPro(color: selectedColor, currentHighScore: highScore))).then((_) => _loadData()),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => SnakeIoPro(color: selectedColor, highScore: highScore))).then((_) => _loadData()),
                   child: const Text("PLAY", style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
           ),
-          if (_isBannerAdLoaded) Positioned(bottom: 0, width: s.width, height: 50, child: google.AdWidget(ad: _bannerAd!)),
+          if (_isBannerAdLoaded) Positioned(bottom: 0, width: s.width, height: 50, child: g_ads.AdWidget(ad: _bannerAd!)),
         ],
       ),
     );
@@ -111,14 +107,8 @@ class _StartScreenState extends State<StartScreen> {
     return GestureDetector(
       onTap: () async {
         final prefs = await SharedPreferences.getInstance();
-        if (unlocked) {
-          setState(() => selectedColor = skinLibrary[name]!);
-          await prefs.setString('selectedSkin', name);
-        } else if (totalPoints >= 500) {
-          setState(() { totalPoints -= 500; unlockedSkins.add(name); });
-          await prefs.setInt('totalPoints', totalPoints);
-          await prefs.setStringList('unlockedSkins', unlockedSkins);
-        }
+        if (unlocked) { setState(() => selectedColor = skinLibrary[name]!); await prefs.setString('selectedSkin', name); }
+        else if (totalPoints >= 500) { setState(() { totalPoints -= 500; unlockedSkins.add(name); }); await prefs.setInt('totalPoints', totalPoints); await prefs.setStringList('unlockedSkins', unlockedSkins); }
       },
       child: Container(margin: const EdgeInsets.all(8), decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: selectedColor == skinLibrary[name] ? Colors.white : Colors.transparent, width: 3)), child: CircleAvatar(backgroundColor: skinLibrary[name], radius: 20, child: unlocked ? null : const Icon(Icons.lock, size: 15, color: Colors.white))),
     );
@@ -127,8 +117,8 @@ class _StartScreenState extends State<StartScreen> {
 }
 
 class SnakeIoPro extends StatefulWidget {
-  final Color color; final int currentHighScore;
-  SnakeIoPro({required this.color, required this.currentHighScore});
+  final Color color; final int highScore;
+  SnakeIoPro({required this.color, required this.highScore});
   @override _SnakeIoProState createState() => _SnakeIoProState();
 }
 
@@ -137,8 +127,8 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   final double worldSize = 5000.0; Timer? gameLoop;
   ui.Image? head, body;
   final AudioPlayer bgPlayer = AudioPlayer(), fxPlayer = AudioPlayer();
-  google.InterstitialAd? _googleAd;
-  yandex.InterstitialAd? _yandexAd;
+  g_ads.InterstitialAd? _googleAd;
+  y_ads.InterstitialAd? _yandexAd;
 
   @override
   void initState() {
@@ -152,17 +142,18 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   }
 
   void _loadDualAds() {
-    google.InterstitialAd.load(
+    g_ads.InterstitialAd.load(
       adUnitId: 'ca-app-pub-3940256099942544/1033173712',
-      request: const google.AdRequest(),
-      adLoadCallback: google.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null),
+      request: const g_ads.AdRequest(),
+      adLoadCallback: g_ads.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null),
     );
-    // تم إصلاح السطر التالي بإزالة const وحل مشكلة الـ Constructor
-    final loader = yandex.InterstitialAdLoader(
+    
+    // ياندكس 8.0.0 - الاستدعاء الصحيح
+    final loader = y_ads.InterstitialAdLoader(
       onAdLoaded: (ad) => setState(() => _yandexAd = ad),
       onAdFailedToLoad: (error) => _yandexAd = null,
     );
-    loader.loadAd(adRequestConfiguration: yandex.AdRequestConfiguration(adUnitId: 'R-M-DEMO-interstitial'));
+    loader.loadAd(adRequestConfiguration: y_ads.AdRequestConfiguration(adUnitId: 'R-M-DEMO-interstitial'));
   }
 
   void _playMusic() async { await bgPlayer.setReleaseMode(ReleaseMode.loop); await bgPlayer.play(AssetSource('audio/music.mp3')); await bgPlayer.setVolume(0.3); }
@@ -195,8 +186,8 @@ class _SnakeIoProState extends State<SnakeIoPro> {
 
   void _move(Snake s) {
     double spd = (s.isBoosting ? 12.0 : 6.0);
-    s.body.insert(0, Offset((s.body.first.dx + cos(s.angle)*spd).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*spd).clamp(0, worldSize)));
-    s.angles.insert(0, s.angle);
+    Offset next = Offset((s.body.first.dx + cos(s.angle)*spd).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*spd).clamp(0, worldSize));
+    s.body.insert(0, next); s.angles.insert(0, s.angle);
     if (s.body.length > s.length) { s.body.removeLast(); s.angles.removeLast(); }
   }
 
@@ -216,7 +207,7 @@ class _SnakeIoProState extends State<SnakeIoPro> {
     gameLoop?.cancel(); bgPlayer.stop();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('totalPoints', (prefs.getInt('totalPoints') ?? 0) + player.length);
-    if (player.length > widget.currentHighScore) {
+    if (player.length > widget.highScore) {
       await prefs.setInt('highScore', player.length);
       try { FirebaseFirestore.instance.collection('leaderboard').add({'name': 'Player', 'score': player.length}); } catch (e) {}
     }
@@ -254,7 +245,7 @@ class GamePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // الكاميرا تتبع اللاعب بدقة تامة
+    // الكاميرا تتبع اللاعب وتمنع اللون الأبيض
     canvas.translate(sz.width / 2 - player.body.first.dx, sz.height / 2 - player.body.first.dy);
     canvas.drawRect(Rect.fromLTWH(0, 0, worldSize, worldSize), Paint()..color = Colors.green.shade900);
     for (var f in food) canvas.drawCircle(f, 10, Paint()..color = Colors.yellowAccent);

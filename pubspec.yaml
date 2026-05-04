@@ -1,5 +1,5 @@
 name: snake_game
-description: Final Stable Build - Snake IO.
+description: Final Stable Build - Snake IO Pro with Dual Ads & Leaderboard.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -10,8 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   google_mobile_ads: ^5.1.0
-  # نسخة مستقرة ومثبتة لتجنب خطأ "الملف غير موجود"
-  yandex_mobileads: 7.11.0 
+  # استخدام الإصدار الذي طلبه نظام البناء لضمان النجاح
+  yandex_mobileads: 8.0.0 
   audioplayers: ^5.2.1
   shared_preferences: ^2.2.3
   firebase_core: ^2.24.2
