@@ -14,7 +14,7 @@ void main() async {
   try {
     await Firebase.initializeApp();
     await g_ads.MobileAds.instance.initialize();
-    y_ads.MobileAds.initialize(); 
+    y_ads.MobileAds.initialize();
   } catch (e) {
     debugPrint("Init Error: $e");
   }
@@ -147,8 +147,7 @@ class _SnakeIoProState extends State<SnakeIoPro> {
       request: const g_ads.AdRequest(),
       adLoadCallback: g_ads.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null),
     );
-    
-    // ياندكس 8.0.0 - الاستدعاء الصحيح
+    // تم إصلاح استدعاء ياندكس 7.11.0 (السينتكس المستقر)
     final loader = y_ads.InterstitialAdLoader(
       onAdLoaded: (ad) => setState(() => _yandexAd = ad),
       onAdFailedToLoad: (error) => _yandexAd = null,
@@ -186,8 +185,8 @@ class _SnakeIoProState extends State<SnakeIoPro> {
 
   void _move(Snake s) {
     double spd = (s.isBoosting ? 12.0 : 6.0);
-    Offset next = Offset((s.body.first.dx + cos(s.angle)*spd).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*spd).clamp(0, worldSize));
-    s.body.insert(0, next); s.angles.insert(0, s.angle);
+    s.body.insert(0, Offset((s.body.first.dx + cos(s.angle)*spd).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*spd).clamp(0, worldSize)));
+    s.angles.insert(0, s.angle);
     if (s.body.length > s.length) { s.body.removeLast(); s.angles.removeLast(); }
   }
 
