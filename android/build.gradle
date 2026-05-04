@@ -1,21 +1,13 @@
 buildscript {
-    // تحديد نسخة Kotlin المتوافقة مع أحدث مكتبات الإعلانات
     ext.kotlin_version = '2.0.0'
-    
     repositories {
         google()
         mavenCentral()
     }
-
     dependencies {
-        // أداة بناء الأندرويد (تأكد من توافقها مع إصدار Gradle المستخدم)
-        classpath 'com.android.tools.build:gradle:8.1.1'
-        
-        // دعم لغة Kotlin
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        
-        // خدمات جوجل (ضرورية لـ Firebase ولوحة الصدارة)
         classpath 'com.google.gms:google-services:4.3.15'
+        classpath 'com.android.tools.build:gradle:8.1.1'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
@@ -23,14 +15,10 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        
-        // مستودع إعلانات ياندكس (Yandex Mobile Ads SDK)
-        // هذا الرابط هو الرابط الرسمي والمحدث
         maven { url "https://yandex.net" }
     }
 }
 
-// إعداد مسارات البناء
 rootProject.buildDir = '../build'
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
@@ -39,7 +27,6 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
-// مهمة تنظيف المشروع
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
