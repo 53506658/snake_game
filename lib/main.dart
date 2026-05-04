@@ -1,13 +1,14 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart' as g_ads;
 import 'package:yandex_mobileads/yandex_mobileads.dart' as y_ads;
 import 'package:firebase_core/firebase_core.dart';
-
-import 'home.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Firebase.initializeApp();
   await g_ads.MobileAds.instance.initialize();
   y_ads.MobileAds.initialize();
@@ -17,10 +18,8 @@ void main() async {
     home: Home(),
   ));
 }
-import 'package:flutter/material.dart';
-import 'game.dart';
-import 'shop.dart';
 
+// --- شاشة البداية (Home) ---
 class Home extends StatelessWidget {
   const Home({super.key});
 
@@ -32,25 +31,21 @@ class Home extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-
-            const Text("SNAKE PRO",
-              style: TextStyle(fontSize: 40, color: Colors.orange),
+            const Text(
+              "SNAKE PRO",
+              style: TextStyle(fontSize: 40, color: Colors.orange, fontWeight: FontWeight.bold),
             ),
-
             const SizedBox(height: 40),
-
             ElevatedButton(
               onPressed: () {
-                Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const Game()));
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const Game()));
               },
               child: const Text("PLAY"),
             ),
-
+            const SizedBox(height: 10),
             ElevatedButton(
               onPressed: () {
-                Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const Shop()));
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const Shop()));
               },
               child: const Text("SHOP"),
             ),
@@ -60,14 +55,8 @@ class Home extends StatelessWidget {
     );
   }
 }
-import 'dart:async';
-import 'dart:math';
-import 'package:flutter/material.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart' as g_ads;
-import 'package:yandex_mobileads/yandex_mobileads.dart' as y_ads;
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+// --- شاشة اللعبة (Game) ---
 class Game extends StatefulWidget {
   const Game({super.key});
 
@@ -76,13 +65,10 @@ class Game extends StatefulWidget {
 }
 
 class _GameState extends State<Game> {
-
   Offset player = const Offset(200, 200);
   List<Offset> food = [];
   List<Offset> bots = [];
-
   Timer? loop;
-
   int score = 0;
   int level = 1;
 
@@ -92,44 +78,14 @@ class _GameState extends State<Game> {
   @override
   void initState() {
     super.initState();
-
-    food = List.generate(120,
-      (_) => Offset(Random().nextDouble()*500, Random().nextDouble()*800));
-
-    bots = List.generate(5,
-      (_) => Offset(Random().nextDouble()*500, Random().nextDouble()*800));
-
+    food = List.generate(120, (_) => Offset(Random().nextDouble() * 300, Random().nextDouble() * 600));
+    bots = List.generate(5, (_) => Offset(Random().nextDouble() * 300, Random().nextDouble() * 600));
     loadAds();
-
-    loop = Timer.periodic(
-      const Duration(milliseconds: 16),
-      (_) => update(),
-    );
+    loop = Timer.periodic(const Duration(milliseconds: 16), (_) => update());
   }
-    void update() {
-    setState(() {
 
-      // player level
-      level = (score ~/ 100) + 1;
-
-      // bots AI (يتبع اللاعب)
-      for (int i = 0; i < bots.length; i++) {
-        final dir = (player - bots[i]);
-        bots[i] += Offset(dir.dx * 0.01, dir.dy * 0.01);
-      }
-
-      // eating food
-      food.removeWhere((f) {
-        if ((f - player).distance < 20) {
-          score += 10;
-          return true;
-        }
-        return false;
-      });
-    });
-  }
-    void loadAds() {
-
+  void loadAds() {
+    // إعدادات إعلانات جوجل (كما هي دون تغيير)
     g_ads.InterstitialAd.load(
       adUnitId: 'ca-app-pub-3940256099942544/1033173712',
       request: const g_ads.AdRequest(),
@@ -139,18 +95,39 @@ class _GameState extends State<Game> {
       ),
     );
 
+    // إعدادات إعلانات ياندكس (كما هي دون تغيير)
     y_ads.InterstitialAd.create(
       adUnitId: 'R-M-DEMO-interstitial',
       onAdLoaded: (ad) => yandexAd = ad,
       onAdFailedToLoad: (_) => yandexAd = null,
     );
-  }  void gameOver() async {
+  }
+
+  void update() {
+    if (!mounted) return;
+    setState(() {
+      level = (score ~/ 100) + 1;
+      for (int i = 0; i < bots.length; i++) {
+        final dir = (player - bots[i]);
+        bots[i] += Offset(dir.dx * 0.005, dir.dy * 0.005);
+      }
+      food.removeWhere((f) {
+        if ((f - player).distance < 20) {
+          score += 10;
+          return true;
+        }
+        return false;
+      });
+    });
+  }
+
+  void gameOver() async {
     loop?.cancel();
-
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt("coins", score);
+    int currentCoins = prefs.getInt("coins") ?? 0;
+    await prefs.setInt("coins", currentCoins + score);
 
-    // leaderboard
+    // Leaderboard
     FirebaseFirestore.instance.collection("leaderboard").add({
       "score": score,
       "level": level,
@@ -163,11 +140,41 @@ class _GameState extends State<Game> {
       yandexAd!.show();
     }
 
-    Navigator.pop(context);
+    if (mounted) Navigator.pop(context);
   }
-  import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+  @override
+  void dispose() {
+    loop?.cancel();
+    googleAd?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.green[900],
+      body: GestureDetector(
+        onPanUpdate: (d) => setState(() => player += d.delta),
+        child: Stack(
+          children: [
+            // الطعام
+            ...food.map((f) => Positioned(left: f.dx, top: f.dy, child: const CircleAvatar(radius: 5, backgroundColor: Colors.yellow))),
+            // البوتات
+            ...bots.map((b) => Positioned(left: b.dx, top: b.dy, child: const CircleAvatar(radius: 10, backgroundColor: Colors.red))),
+            // اللاعب
+            Positioned(left: player.dx, top: player.dy, child: const CircleAvatar(radius: 12, backgroundColor: Colors.orange)),
+            // السكور
+            Positioned(top: 40, left: 20, child: Text("Score: $score", style: const TextStyle(color: Colors.white, fontSize: 20))),
+            Positioned(top: 10, right: 10, child: IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: gameOver)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// --- شاشة المتجر (Shop) ---
 class Shop extends StatefulWidget {
   const Shop({super.key});
 
@@ -176,7 +183,6 @@ class Shop extends StatefulWidget {
 }
 
 class _ShopState extends State<Shop> {
-
   int coins = 0;
   String skin = "orange";
 
@@ -198,24 +204,26 @@ class _ShopState extends State<Shop> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Column(
-        children: [
-
-          Text("Coins: $coins",
-            style: const TextStyle(color: Colors.white),
-          ),
-
-          ElevatedButton(
-            onPressed: () async {
-              if (coins >= 500) {
-                final p = await SharedPreferences.getInstance();
-                await p.setString("skin", "red");
-              }
-            },
-            child: const Text("Buy Red Skin (500)"),
-          ),
-
-        ],
+      appBar: AppBar(title: const Text("SHOP"), backgroundColor: Colors.orange),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text("Coins: $coins", style: const TextStyle(color: Colors.white, fontSize: 25)),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () async {
+                if (coins >= 500) {
+                  final p = await SharedPreferences.getInstance();
+                  await p.setInt("coins", coins - 500);
+                  await p.setString("skin", "red");
+                  load();
+                }
+              },
+              child: const Text("Buy Red Skin (500)"),
+            ),
+          ],
+        ),
       ),
     );
   }
