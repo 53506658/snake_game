@@ -4,7 +4,9 @@ buildscript {
         google()
         mavenCentral()
     }
-    dependencies {classpath 'com.google.gms:google-services:4.3.15'
+    dependencies {
+        // سطر خدمات جوجل للوحة الصدارة
+        classpath 'com.google.gms:google-services:4.3.15'
 
         classpath 'com.android.tools.build:gradle:8.1.1'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
@@ -15,6 +17,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // --- إضافة مستودع ياندكس لضمان تحميل مكتبة الإعلانات بنجاح ---
+        maven { url "https://yandex.net" }
     }
 }
 
