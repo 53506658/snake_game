@@ -9,9 +9,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  await g_ads.MobileAds.instance.initialize();
-  y_ads.MobileAds.initialize();
+  try {
+    await Firebase.initializeApp();
+    await g_ads.MobileAds.instance.initialize();
+    y_ads.MobileAds.initialize();
+  } catch (e) {
+    debugPrint("Initialization Error: $e");
+  }
 
   runApp(const MaterialApp(
     debugShowCheckedModeBanner: false,
@@ -19,7 +23,7 @@ void main() async {
   ));
 }
 
-// --- شاشة البداية (Home) ---
+// --- شاشة البداية ---
 class Home extends StatelessWidget {
   const Home({super.key});
 
@@ -31,22 +35,17 @@ class Home extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              "SNAKE PRO",
+            const Text("SNAKE PRO",
               style: TextStyle(fontSize: 40, color: Colors.orange, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 40),
             ElevatedButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const Game()));
-              },
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const Game())),
               child: const Text("PLAY"),
             ),
             const SizedBox(height: 10),
             ElevatedButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const Shop()));
-              },
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const Shop())),
               child: const Text("SHOP"),
             ),
           ],
@@ -56,10 +55,9 @@ class Home extends StatelessWidget {
   }
 }
 
-// --- شاشة اللعبة (Game) ---
+// --- شاشة اللعبة ---
 class Game extends StatefulWidget {
   const Game({super.key});
-
   @override
   State<Game> createState() => _GameState();
 }
@@ -73,7 +71,7 @@ class _GameState extends State<Game> {
   int level = 1;
 
   g_ads.InterstitialAd? googleAd;
-  y_ads.InterstitialAd? yandexAd;
+  y_ads.InterstitialAd? yandexAd; // تم تصحيح النوع هنا
 
   @override
   void initState() {
@@ -85,7 +83,7 @@ class _GameState extends State<Game> {
   }
 
   void loadAds() {
-    // إعدادات إعلانات جوجل (كما هي دون تغيير)
+    // إعلان جوجل
     g_ads.InterstitialAd.load(
       adUnitId: 'ca-app-pub-3940256099942544/1033173712',
       request: const g_ads.AdRequest(),
@@ -95,12 +93,12 @@ class _GameState extends State<Game> {
       ),
     );
 
-    // إعدادات إعلانات ياندكس (كما هي دون تغيير)
-    y_ads.InterstitialAd.create(
-      adUnitId: 'R-M-DEMO-interstitial',
-      onAdLoaded: (ad) => yandexAd = ad,
-      onAdFailedToLoad: (_) => yandexAd = null,
+    // إعلان ياندكس - تم تصحيحه ليتوافق مع نسخة 7+
+    final adLoader = y_ads.InterstitialAdLoader(
+      onAdLoaded: (ad) => setState(() => yandexAd = ad),
+      onAdFailedToLoad: (error) => yandexAd = null,
     );
+    adLoader.loadAd(adRequestConfiguration: y_ads.AdRequestConfiguration(adUnitId: 'R-M-DEMO-interstitial'));
   }
 
   void update() {
@@ -127,7 +125,6 @@ class _GameState extends State<Game> {
     int currentCoins = prefs.getInt("coins") ?? 0;
     await prefs.setInt("coins", currentCoins + score);
 
-    // Leaderboard
     FirebaseFirestore.instance.collection("leaderboard").add({
       "score": score,
       "level": level,
@@ -139,7 +136,6 @@ class _GameState extends State<Game> {
     } else if (yandexAd != null) {
       yandexAd!.show();
     }
-
     if (mounted) Navigator.pop(context);
   }
 
@@ -153,18 +149,14 @@ class _GameState extends State<Game> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.green[900],
+      backgroundColor: Colors.green,
       body: GestureDetector(
         onPanUpdate: (d) => setState(() => player += d.delta),
         child: Stack(
           children: [
-            // الطعام
             ...food.map((f) => Positioned(left: f.dx, top: f.dy, child: const CircleAvatar(radius: 5, backgroundColor: Colors.yellow))),
-            // البوتات
             ...bots.map((b) => Positioned(left: b.dx, top: b.dy, child: const CircleAvatar(radius: 10, backgroundColor: Colors.red))),
-            // اللاعب
             Positioned(left: player.dx, top: player.dy, child: const CircleAvatar(radius: 12, backgroundColor: Colors.orange)),
-            // السكور
             Positioned(top: 40, left: 20, child: Text("Score: $score", style: const TextStyle(color: Colors.white, fontSize: 20))),
             Positioned(top: 10, right: 10, child: IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: gameOver)),
           ],
@@ -174,30 +166,21 @@ class _GameState extends State<Game> {
   }
 }
 
-// --- شاشة المتجر (Shop) ---
+// --- شاشة المتجر ---
 class Shop extends StatefulWidget {
   const Shop({super.key});
-
   @override
   State<Shop> createState() => _ShopState();
 }
 
 class _ShopState extends State<Shop> {
   int coins = 0;
-  String skin = "orange";
-
   @override
-  void initState() {
-    super.initState();
-    load();
-  }
+  void initState() { super.initState(); load(); }
 
   Future<void> load() async {
     final p = await SharedPreferences.getInstance();
-    setState(() {
-      coins = p.getInt("coins") ?? 0;
-      skin = p.getString("skin") ?? "orange";
-    });
+    setState(() => coins = p.getInt("coins") ?? 0);
   }
 
   @override
@@ -216,7 +199,6 @@ class _ShopState extends State<Shop> {
                 if (coins >= 500) {
                   final p = await SharedPreferences.getInstance();
                   await p.setInt("coins", coins - 500);
-                  await p.setString("skin", "red");
                   load();
                 }
               },
