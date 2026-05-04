@@ -2,9 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-// إعلانات جوجل
 import 'package:google_mobile_ads/google_mobile_ads.dart' as google;
-// إعلانات ياندكس (تم تصحيح المسار تماماً هنا)
 import 'package:yandex_mobileads/yandex_mobileads.dart' as yandex; 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,13 +12,12 @@ import 'package:firebase_core/firebase_core.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  // تهيئة إعلانات جوجل وياندكس
   await google.MobileAds.instance.initialize();
-  yandex.MobileAds.initialize(); 
-  
+  yandex.MobileAds.initialize(); // تهيئة ياندكس
   runApp(MaterialApp(home: StartScreen(), debugShowCheckedModeBanner: false));
 }
 
+// كلاس الثعبان كما هو مع الحفاظ على الانسيابية
 class Snake {
   List<Offset> body = []; List<double> angles = [];
   double angle = 0.0, targetAngle = 0.0;
@@ -73,19 +70,6 @@ class _StartScreenState extends State<StartScreen> {
     });
   }
 
-  void _buySkin(String name) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (unlockedSkins.contains(name)) {
-      setState(() => selectedColor = skinLibrary[name]!);
-      await prefs.setString('selectedSkin', name);
-    } else if (totalPoints >= 500) {
-      setState(() { totalPoints -= 500; unlockedSkins.add(name); selectedColor = skinLibrary[name]!; });
-      await prefs.setInt('totalPoints', totalPoints);
-      await prefs.setStringList('unlockedSkins', unlockedSkins);
-      await prefs.setString('selectedSkin', name);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -100,7 +84,6 @@ class _StartScreenState extends State<StartScreen> {
                   const Text("SNAKE PRO", style: TextStyle(color: Colors.orangeAccent, fontSize: 60, fontWeight: FontWeight.bold)),
                   Text("💰 Points: $totalPoints", style: const TextStyle(color: Colors.amber, fontSize: 20)),
                   const SizedBox(height: 30),
-                  const Text("SKINS STORE", style: TextStyle(color: Colors.white70)),
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: skinLibrary.keys.map((name) => _skinCircle(name)).toList()),
                   const SizedBox(height: 40),
                   ElevatedButton(
@@ -112,7 +95,6 @@ class _StartScreenState extends State<StartScreen> {
               ),
             ),
           ),
-          // تم استخدام البادئة google. لحل مشكلة AdWidget
           if (_isBannerAdLoaded) Positioned(bottom: 0, width: MediaQuery.of(context).size.width, height: 50, child: google.AdWidget(ad: _bannerAd!)),
         ],
       ),
@@ -122,24 +104,21 @@ class _StartScreenState extends State<StartScreen> {
   Widget _skinCircle(String name) {
     bool unlocked = unlockedSkins.contains(name);
     return GestureDetector(
-      onTap: () => _buySkin(name),
-      child: Container(
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: selectedColor == skinLibrary[name] ? Colors.white : Colors.transparent, width: 3)),
-        child: CircleAvatar(backgroundColor: skinLibrary[name], radius: 20, child: unlocked ? null : const Icon(Icons.lock, size: 15, color: Colors.white)),
-      ),
+      onTap: () async {
+        final prefs = await SharedPreferences.getInstance();
+        if (unlocked) { setState(() => selectedColor = skinLibrary[name]!); prefs.setString('selectedSkin', name); }
+        else if (totalPoints >= 500) { setState(() { totalPoints -= 500; unlockedSkins.add(name); }); prefs.setInt('totalPoints', totalPoints); prefs.setStringList('unlockedSkins', unlockedSkins); }
+      },
+      child: Container(margin: const EdgeInsets.all(8), decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: selectedColor == skinLibrary[name] ? Colors.white : Colors.transparent, width: 3)), child: CircleAvatar(backgroundColor: skinLibrary[name], radius: 20, child: unlocked ? null : const Icon(Icons.lock, size: 15, color: Colors.white))),
     );
   }
-
-  @override
-  void dispose() { _bannerAd?.dispose(); super.dispose(); }
+  @override void dispose() { _bannerAd?.dispose(); super.dispose(); }
 }
 
 class SnakeIoPro extends StatefulWidget {
   final Color color; final bool isMuted;
   SnakeIoPro({required this.color, required this.isMuted});
-  @override
-  _SnakeIoProState createState() => _SnakeIoProState();
+  @override _SnakeIoProState createState() => _SnakeIoProState();
 }
 
 class _SnakeIoProState extends State<SnakeIoPro> {
@@ -149,7 +128,7 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   final AudioPlayer bgPlayer = AudioPlayer(), fxPlayer = AudioPlayer();
   
   google.InterstitialAd? _googleAd;
-  yandex.InterstitialAd? _yandexAd; // تصحيح النوع هنا ليطابق ياندكس
+  yandex.InterstitialAd? _yandexAd;
 
   @override
   void initState() {
@@ -163,18 +142,15 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   }
 
   void _loadDualAds() {
-    // تحميل إعلان جوجل
-    google.InterstitialAd.load(
-      adUnitId: 'ca-app-pub-3940256099942544/1033173712',
-      request: const google.AdRequest(),
-      adLoadCallback: google.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null),
+    // إعلان جوجل
+    google.InterstitialAd.load(adUnitId: 'ca-app-pub-3940256099942544/1033173712', request: const google.AdRequest(), adLoadCallback: google.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null));
+    
+    // إعلان ياندكس - استخدام النظام الجديد للإصدار 7+
+    final adLoader = yandex.InterstitialAdLoader(
+      onAdLoaded: (ad) => setState(() => _yandexAd = ad),
+      onAdFailedToLoad: (error) => _yandexAd = null,
     );
-    // تحميل إعلان ياندكس
-    yandex.InterstitialAd.create(
-      adUnitId: 'R-M-DEMO-interstitial',
-      onAdLoaded: (ad) => _yandexAd = ad,
-      onAdFailedToLoad: (e) => _yandexAd = null,
-    );
+    adLoader.loadAd(adRequestConfiguration: yandex.AdRequestConfiguration(adUnitId: 'R-M-DEMO-interstitial'));
   }
 
   void _playMusic() async { await bgPlayer.setReleaseMode(ReleaseMode.loop); await bgPlayer.play(AssetSource('audio/music.mp3')); await bgPlayer.setVolume(0.3); }
@@ -207,8 +183,8 @@ class _SnakeIoProState extends State<SnakeIoPro> {
 
   void _move(Snake s) {
     double spd = (s.isBoosting ? 12.0 : 6.0);
-    Offset next = Offset((s.body.first.dx + cos(s.angle)*spd).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*spd).clamp(0, worldSize));
-    s.body.insert(0, next); s.angles.insert(0, s.angle);
+    s.body.insert(0, Offset((s.body.first.dx + cos(s.angle)*spd).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*spd).clamp(0, worldSize)));
+    s.angles.insert(0, s.angle);
     if (s.body.length > s.length) { s.body.removeLast(); s.angles.removeLast(); }
   }
 
@@ -226,12 +202,6 @@ class _SnakeIoProState extends State<SnakeIoPro> {
 
   void _end() async {
     gameLoop?.cancel(); bgPlayer.stop();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('totalPoints', (prefs.getInt('totalPoints') ?? 0) + player.length);
-    if (player.length > (prefs.getInt('highScore') ?? 0)) {
-      await prefs.setInt('highScore', player.length);
-      FirebaseFirestore.instance.collection('leaderboard').add({'name': 'Player', 'score': player.length});
-    }
     if (_googleAd != null) _googleAd!.show(); else if (_yandexAd != null) _yandexAd!.show();
     if (!widget.isMuted) await fxPlayer.play(AssetSource('audio/die.wav'));
     Navigator.pop(context);
@@ -265,7 +235,7 @@ class GamePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // الكاميرا تتبع اللاعب بدقة
+    // الكاميرا تتبع اللاعب وتمنع المنطقة البيضاء
     canvas.translate(sz.width / 2 - player.body.first.dx, sz.height / 2 - player.body.first.dy);
     canvas.drawRect(Rect.fromLTWH(0, 0, worldSize, worldSize), Paint()..color = Colors.green.shade900);
     for (var f in food) canvas.drawCircle(f, 10, Paint()..color = Colors.yellowAccent);
@@ -286,5 +256,5 @@ class GamePainter extends CustomPainter {
     }
   }
   @override
-  bool shouldRepaint(covariant CustomPainter old) => true;
+  bool shouldRepaint(CustomPainter old) => true;
 }
