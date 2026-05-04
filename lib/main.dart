@@ -12,11 +12,14 @@ void main() {
 }
 
 class Snake {
-  List<Offset> body = []; double angle = 0.0; Color color; int length = 50;
+  List<Offset> body = []; 
+  List<double> angles = []; // تخزين زاوية كل قطعة لمنع التقطع
+  double angle = 0.0; Color color; int length = 40;
   bool isBoosting = false;
   Snake({required Offset startPos, required this.color}) {
     body = List.generate(length, (index) => startPos);
-    angle = Random().nextDouble() * 2 * pi;
+    angles = List.generate(length, (index) => 0.0);
+    angle = 0.0;
   }
 }
 
@@ -27,12 +30,15 @@ class StartScreen extends StatefulWidget {
 
 class _StartScreenState extends State<StartScreen> {
   int highScore = 0;
+  bool isMuted = false; // إعادة متغير الصوت
+
   @override
   void initState() { super.initState(); _loadData(); }
   void _loadData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() { highScore = prefs.getInt('highScore') ?? 0; });
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -43,10 +49,15 @@ class _StartScreenState extends State<StartScreen> {
           children: [
             Text("SNAKE", style: TextStyle(color: Colors.orangeAccent, fontSize: 80, fontWeight: FontWeight.bold, letterSpacing: 10)),
             Text("🏆 BEST: $highScore", style: TextStyle(color: Colors.white70, fontSize: 18)),
-            SizedBox(height: 60),
+            SizedBox(height: 20),
+            IconButton(
+              icon: Icon(isMuted ? Icons.volume_off : Icons.volume_up, color: Colors.white, size: 30),
+              onPressed: () => setState(() => isMuted = !isMuted),
+            ),
+            SizedBox(height: 40),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: EdgeInsets.symmetric(horizontal: 80, vertical: 20), shape: StadiumBorder()),
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => SnakeIoPro())),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => SnakeIoPro(isMuted: isMuted))),
               child: Text("PLAY", style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold)),
             ),
           ],
@@ -57,6 +68,8 @@ class _StartScreenState extends State<StartScreen> {
 }
 
 class SnakeIoPro extends StatefulWidget {
+  final bool isMuted;
+  SnakeIoPro({required this.isMuted});
   @override
   _SnakeIoProState createState() => _SnakeIoProState();
 }
@@ -105,12 +118,16 @@ class _SnakeIoProState extends State<SnakeIoPro> {
     double spd = (s.isBoosting ? 8.0 : 4.0);
     Offset next = Offset((s.body.first.dx + cos(s.angle)*spd).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*spd).clamp(0, worldSize));
     s.body.insert(0, next);
-    if (s.body.length > s.length) s.body.removeLast();
+    s.angles.insert(0, s.angle); // حفظ زاوية الرأس للقطع التي خلفه
+    if (s.body.length > s.length) {
+      s.body.removeLast();
+      s.angles.removeLast();
+    }
   }
 
   void _checkFood(Snake s) {
     food.removeWhere((f) {
-      if ((f - s.body.first).distance < 50) { s.length += 2; return true; }
+      if ((f - s.body.first).distance < 50) { s.length += 3; return true; }
       return false;
     });
     if (food.length < 150) food.add(Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize));
@@ -129,18 +146,39 @@ class _SnakeIoProState extends State<SnakeIoPro> {
             onPanUpdate: (d) => setState(() => player.angle = atan2(d.localPosition.dy - s.height/2, d.localPosition.dx - s.width/2)),
             child: CustomPaint(size: Size.infinite, painter: GamePainter(player: player, bots: bots, food: food, sz: s, head: head, body: body, tail: tail)),
           ),
+          // زر السرعة
           Positioned(
-            bottom: 50, left: 30,
+            bottom: 30, left: 30,
             child: GestureDetector(
               onTapDown: (_) => setState(() => player.isBoosting = true),
               onTapUp: (_) => setState(() => player.isBoosting = false),
-              child: Container(padding: EdgeInsets.all(20), decoration: BoxDecoration(color: Colors.orange.withOpacity(0.5), shape: BoxShape.circle), child: Icon(Icons.bolt, color: Colors.white, size: 40)),
+              child: Container(padding: EdgeInsets.all(15), decoration: BoxDecoration(color: Colors.orange.withOpacity(0.7), shape: BoxShape.circle), child: Icon(Icons.bolt, color: Colors.white, size: 40)),
+            ),
+          ),
+          // أزرار التحكم (الأسهم)
+          Positioned(
+            bottom: 30, right: 30,
+            child: Column(
+              children: [
+                _arrowBtn(Icons.arrow_upward, -pi/2),
+                Row(children: [
+                  _arrowBtn(Icons.arrow_back, pi),
+                  SizedBox(width: 40),
+                  _arrowBtn(Icons.arrow_forward, 0),
+                ]),
+                _arrowBtn(Icons.arrow_downward, pi/2),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _arrowBtn(IconData icon, double ang) => GestureDetector(
+    onTap: () => setState(() => player.angle = ang),
+    child: Container(margin: EdgeInsets.all(5), padding: EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle), child: Icon(icon, color: Colors.white, size: 30)),
+  );
 
   @override
   void dispose() { gameLoop?.cancel(); super.dispose(); }
@@ -162,30 +200,31 @@ class GamePainter extends CustomPainter {
   }
 
   void _drawSnake(Canvas canvas, Snake s, Color? colorFilter) {
+    // رسم الجسم من الذيل للرأس ليكون الرأس في المقدمة
     for (int i = s.body.length - 1; i >= 0; i--) {
-      if (i % 12 != 0 && i != 0) continue; 
+      // تعديل المسافة: رسم قطعة كل 6 نقاط لضمان الاتصال وعدم التقطع
+      if (i % 6 != 0 && i != 0) continue; 
+      
       canvas.save();
       canvas.translate(s.body[i].dx, s.body[i].dy);
+      
+      // تدوير كل قطعة بناءً على زاويتها الخاصة المسجلة
+      canvas.rotate(s.angles[i] + pi/2);
+
       Paint p = Paint();
       if (colorFilter != null) p.colorFilter = ColorFilter.mode(colorFilter, BlendMode.modulate);
+      
       if (i == 0) {
-        canvas.rotate(s.angle + pi/2);
-        _draw(canvas, head!, 65, p);
+        _draw(canvas, head!, 60, p);
       } else {
-        _draw(canvas, body!, 50, p);
+        _draw(canvas, body!, 45, p);
       }
       canvas.restore();
     }
   }
 
   void _draw(Canvas c, ui.Image i, double s, Paint p) {
-    paintImage(
-      canvas: c, 
-      rect: Rect.fromCenter(center: Offset.zero, width: s, height: s), 
-      image: i, 
-      colorFilter: p.colorFilter, // تم الإصلاح هنا
-      fit: BoxFit.contain,
-    );
+    paintImage(canvas: c, rect: Rect.fromCenter(center: Offset.zero, width: s, height: s), image: i, colorFilter: p.colorFilter, fit: BoxFit.contain);
   }
 
   @override
