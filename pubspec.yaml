@@ -26,6 +26,16 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
+  
+  # تعريف الملفات والمجلدات
   assets:
     - assets/icon/
     - assets/audio/
+    # تعريف صور الثعبان (PNG للشفافية)
+    - assets/head.png
+    - assets/body.png
+    - assets/tail.png
+    # تعريف خلفيات المستويات (البيئات)
+    - assets/forest.png
+    - assets/desert.jpg
+    - assets/snow.jpg
