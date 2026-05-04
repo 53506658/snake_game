@@ -2,8 +2,9 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+// استخدام اختصارات لمنع تضارب الأسماء
 import 'package:google_mobile_ads/google_mobile_ads.dart' as google;
-import 'package:yandex_mobileads/yandex_mobileads.dart'; 
+import 'package:yandex_mobileads/yandex_mobileads.dart' as yandex;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -14,7 +15,7 @@ void main() async {
   try {
     await Firebase.initializeApp();
     await google.MobileAds.instance.initialize();
-    MobileAds.initialize(); // ياندكس 8.0.0
+    yandex.MobileAds.initialize(); 
   } catch (e) {
     debugPrint("Init Error: $e");
   }
@@ -73,33 +74,43 @@ class _StartScreenState extends State<StartScreen> {
     });
   }
 
+  void _buySkin(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (unlockedSkins.contains(name)) {
+      setState(() => selectedColor = skinLibrary[name]!);
+      await prefs.setString('selectedSkin', name);
+    } else if (totalPoints >= 500) {
+      setState(() { totalPoints -= 500; unlockedSkins.add(name); selectedColor = skinLibrary[name]!; });
+      await prefs.setInt('totalPoints', totalPoints);
+      await prefs.setStringList('unlockedSkins', unlockedSkins);
+      await prefs.setString('selectedSkin', name);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    Size s = MediaQuery.of(context).size;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
           Center(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text("SNAKE PRO", style: TextStyle(color: Colors.orangeAccent, fontSize: 60, fontWeight: FontWeight.bold)),
-                  Text("💰 Points: $totalPoints", style: const TextStyle(color: Colors.amber, fontSize: 20)),
-                  const SizedBox(height: 30),
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: skinLibrary.keys.map((name) => _skinCircle(name)).toList()),
-                  const SizedBox(height: 40),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 20), shape: const StadiumBorder()),
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => SnakeIoPro(color: selectedColor, isMuted: isMuted))).then((_) => _loadData()),
-                    child: const Text("PLAY", style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text("SNAKE PRO", style: TextStyle(color: Colors.orangeAccent, fontSize: 60, fontWeight: FontWeight.bold)),
+                Text("💰 Points: $totalPoints", style: const TextStyle(color: Colors.amber, fontSize: 20)),
+                const SizedBox(height: 30),
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: skinLibrary.keys.map((name) => _skinCircle(name)).toList()),
+                const SizedBox(height: 40),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 20), shape: const StadiumBorder()),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => SnakeIoPro(color: selectedColor, isMuted: isMuted))).then((_) => _loadData()),
+                  child: const Text("PLAY", style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold)),
+                ),
+              ],
             ),
           ),
-          if (_isBannerAdLoaded) Positioned(bottom: 0, width: s.width, height: 50, child: google.AdWidget(ad: _bannerAd!)),
+          if (_isBannerAdLoaded) Positioned(bottom: 0, width: MediaQuery.of(context).size.width, height: 50, child: google.AdWidget(ad: _bannerAd!)),
         ],
       ),
     );
@@ -108,11 +119,7 @@ class _StartScreenState extends State<StartScreen> {
   Widget _skinCircle(String name) {
     bool unlocked = unlockedSkins.contains(name);
     return GestureDetector(
-      onTap: () async {
-        final prefs = await SharedPreferences.getInstance();
-        if (unlocked) { setState(() => selectedColor = skinLibrary[name]!); await prefs.setString('selectedSkin', name); }
-        else if (totalPoints >= 500) { setState(() { totalPoints -= 500; unlockedSkins.add(name); }); await prefs.setInt('totalPoints', totalPoints); await prefs.setStringList('unlockedSkins', unlockedSkins); }
-      },
+      onTap: () => _buySkin(name),
       child: Container(margin: const EdgeInsets.all(8), decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: selectedColor == skinLibrary[name] ? Colors.white : Colors.transparent, width: 3)), child: CircleAvatar(backgroundColor: skinLibrary[name], radius: 20, child: unlocked ? null : const Icon(Icons.lock, size: 15, color: Colors.white))),
     );
   }
@@ -131,7 +138,7 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   ui.Image? head, body;
   final AudioPlayer bgPlayer = AudioPlayer(), fxPlayer = AudioPlayer();
   google.InterstitialAd? _googleAd;
-  InterstitialAd? _yandexAd;
+  yandex.InterstitialAd? _yandexAd;
 
   @override
   void initState() {
@@ -139,24 +146,23 @@ class _SnakeIoProState extends State<SnakeIoPro> {
     player = Snake(startPos: const Offset(2500, 2500), skinColor: widget.color);
     bots = List.generate(5, (i) => Snake(startPos: Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize), skinColor: Colors.blue));
     food = List.generate(200, (i) => Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize));
-    _loadAssets(); _loadDualAds();
+    _loadAssets(); _loadAds();
     if (!widget.isMuted) _playMusic();
     gameLoop = Timer.periodic(const Duration(milliseconds: 16), (t) => updateGame());
   }
 
-  void _loadDualAds() {
+  void _loadAds() {
     google.InterstitialAd.load(
       adUnitId: 'ca-app-pub-3940256099942544/1033173712',
       request: const google.AdRequest(),
       adLoadCallback: google.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null),
     );
     
-    // ياندكس 8.0.0 - الاستدعاء المباشر
-    final loader = InterstitialAdLoader(
+    final loader = yandex.InterstitialAdLoader(
       onAdLoaded: (ad) => setState(() => _yandexAd = ad),
       onAdFailedToLoad: (error) => _yandexAd = null,
     );
-    loader.loadAd(adRequestConfiguration: AdRequestConfiguration(adUnitId: 'R-M-DEMO-interstitial'));
+    loader.loadAd(adRequestConfiguration: yandex.AdRequestConfiguration(adUnitId: 'R-M-DEMO-interstitial'));
   }
 
   void _playMusic() async { await bgPlayer.setReleaseMode(ReleaseMode.loop); await bgPlayer.play(AssetSource('audio/music.mp3')); await bgPlayer.setVolume(0.3); }
@@ -209,11 +215,16 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   void _end() async {
     gameLoop?.cancel(); bgPlayer.stop();
     final prefs = await SharedPreferences.getInstance();
+    int oldHighScore = prefs.getInt('highScore') ?? 0;
+    
     await prefs.setInt('totalPoints', (prefs.getInt('totalPoints') ?? 0) + player.length);
-    if (player.length > highScore) {
+    
+    // تصحيح خطأ highScore undefined
+    if (player.length > oldHighScore) {
       await prefs.setInt('highScore', player.length);
-      FirebaseFirestore.instance.collection('leaderboard').add({'name': 'Player', 'score': player.length});
+      try { FirebaseFirestore.instance.collection('leaderboard').add({'name': 'Player', 'score': player.length}); } catch (e) {}
     }
+
     if (_googleAd != null) _googleAd!.show(); else if (_yandexAd != null) _yandexAd!.show();
     if (!widget.isMuted) await fxPlayer.play(AssetSource('audio/die.wav'));
     Navigator.pop(context);
