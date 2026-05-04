@@ -10,8 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   google_mobile_ads: ^5.1.0
-  # استخدام إصدار مثبت ومستقر لضمان نجاح البناء
-  yandex_mobileads: 7.11.0 
+  # إصدار مستقر جداً لتجاوز أخطاء التحميل في Codemagic
+  yandex_mobileads: 7.10.0 
   audioplayers: ^5.2.1
   shared_preferences: ^2.2.3
   firebase_core: ^2.24.2
