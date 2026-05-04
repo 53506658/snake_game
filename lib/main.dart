@@ -45,7 +45,7 @@ class _StartScreenState extends State<StartScreen> {
 
   void _loadBanner() {
     _bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-3940256099942544/6300978111', // تجريبي
+      adUnitId: 'ca-app-pub-3940256099942544/6300978111', 
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(
@@ -85,6 +85,9 @@ class _StartScreenState extends State<StartScreen> {
       ),
     );
   }
+
+  @override
+  void dispose() { _bannerAd?.dispose(); super.dispose(); }
 }
 
 class SnakeIoPro extends StatefulWidget {
@@ -114,12 +117,9 @@ class _SnakeIoProState extends State<SnakeIoPro> {
 
   void _loadInterstitial() {
     InterstitialAd.load(
-      adUnitId: 'ca-app-pub-3940256099942544/1033173712', // تجريبي
+      adUnitId: 'ca-app-pub-3940256099942544/1033173712', 
       request: const AdRequest(),
-      adLoadCallback: InterstitialAdLoadCallback(
-        onAdLoaded: (ad) => _interstitialAd = ad,
-        onAdFailedToLoad: (err) => _interstitialAd = null,
-      ),
+      adLoadCallback: InterstitialAdLoadCallback(onAdLoaded: (ad) => _interstitialAd = ad, onAdFailedToLoad: (err) => _interstitialAd = null),
     );
   }
 
@@ -136,7 +136,6 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   void updateGame() {
     if (!mounted) return;
     setState(() {
-      // تنعيم الدوران
       double diff = player.targetAngle - player.angle;
       while (diff < -pi) diff += 2 * pi;
       while (diff > pi) diff -= 2 * pi;
@@ -146,7 +145,6 @@ class _SnakeIoProState extends State<SnakeIoPro> {
       for (var b in bots) {
         if (Random().nextInt(100) < 5) b.angle += (Random().nextDouble() - 0.5);
         _move(b);
-        // نظام التصادم: إذا لمس رأس اللاعب جسم ثعبان آخر
         for (var pos in b.body) {
           if ((player.body.first - pos).distance < 45) _end();
         }
@@ -216,7 +214,7 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   );
 
   @override
-  void dispose() { gameLoop?.cancel(); audio.dispose(); _bannerAd?.dispose(); super.dispose(); }
+  void dispose() { gameLoop?.cancel(); audio.dispose(); _interstitialAd?.dispose(); super.dispose(); }
 }
 
 class GamePainter extends CustomPainter {
@@ -226,7 +224,6 @@ class GamePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // الكاميرا تتبع اللاعب وتغطي المنطقة البيضاء
     canvas.translate(sz.width/2 - player.body.first.dx, sz.height/2 - player.body.first.dy);
     canvas.drawRect(Rect.fromLTWH(0, 0, worldSize, worldSize), Paint()..color = Colors.green.shade900);
     for (var f in food) canvas.drawCircle(f, 10, Paint()..color = Colors.yellowAccent);
