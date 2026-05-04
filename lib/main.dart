@@ -4,11 +4,11 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_core/firebase_core.dart'; // مكتبة فيربيز
+import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // تهيئة فيربيز للوحة الصدارة
+  await Firebase.initializeApp(); 
   MobileAds.instance.initialize();
   runApp(MaterialApp(home: StartScreen(), debugShowCheckedModeBanner: false));
 }
@@ -52,7 +52,7 @@ class _StartScreenState extends State<StartScreen> {
       backgroundColor: Colors.black,
       body: Center(
         child: Column(
-          mainAxisAlignment: Main => MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center, // تم إصلاح الخطأ هنا
           children: [
             const Text("SNAKE", style: TextStyle(color: Colors.orangeAccent, fontSize: 80, fontWeight: FontWeight.bold)),
             Text("💰 Points: $totalPoints", style: const TextStyle(color: Colors.amber, fontSize: 20)),
@@ -86,7 +86,7 @@ class SnakeIoPro extends StatefulWidget {
 class _SnakeIoProState extends State<SnakeIoPro> {
   late Snake player; List<Snake> bots = []; List<Offset> food = [];
   final double worldSize = 5000.0; Timer? gameLoop;
-  ui.Image? head, body; InterstitialAd? _interstitialAd;
+  ui.Image? head, body;
 
   @override
   void initState() {
