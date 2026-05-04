@@ -16,7 +16,7 @@ void main() async {
     await g_ads.MobileAds.instance.initialize();
     y_ads.MobileAds.initialize(); 
   } catch (e) {
-    debugPrint("Ads/Firebase Init Error: $e");
+    debugPrint("Init Error: $e");
   }
   runApp(MaterialApp(home: StartScreen(), debugShowCheckedModeBanner: false));
 }
@@ -101,6 +101,7 @@ class _StartScreenState extends State<StartScreen> {
                   const Text("SNAKE PRO", style: TextStyle(color: Colors.orangeAccent, fontSize: 60, fontWeight: FontWeight.bold)),
                   Text("💰 Points: $totalPoints", style: const TextStyle(color: Colors.amber, fontSize: 20)),
                   const SizedBox(height: 30),
+                  const Text("SKINS STORE", style: TextStyle(color: Colors.white70)),
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: skinLibrary.keys.map((name) => _skinCircle(name)).toList()),
                   const SizedBox(height: 40),
                   ElevatedButton(
@@ -160,11 +161,12 @@ class _SnakeIoProState extends State<SnakeIoPro> {
       adLoadCallback: g_ads.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null),
     );
     
-    final loader = y_ads.InterstitialAdLoader(
+    // ياندكس 7.11.0 - الاستدعاء المتوافق
+    y_ads.InterstitialAd.create(
+      adUnitId: 'R-M-DEMO-interstitial',
       onAdLoaded: (ad) => setState(() => _yandexAd = ad),
       onAdFailedToLoad: (error) => _yandexAd = null,
     );
-    loader.loadAd(adRequestConfiguration: y_ads.AdRequestConfiguration(adUnitId: 'R-M-DEMO-interstitial'));
   }
 
   void _playMusic() async { await bgPlayer.setReleaseMode(ReleaseMode.loop); await bgPlayer.play(AssetSource('audio/music.mp3')); await bgPlayer.setVolume(0.3); }
@@ -218,7 +220,6 @@ class _SnakeIoProState extends State<SnakeIoPro> {
     gameLoop?.cancel(); bgPlayer.stop();
     final prefs = await SharedPreferences.getInstance();
     int currentHighScore = prefs.getInt('highScore') ?? 0;
-    
     await prefs.setInt('totalPoints', (prefs.getInt('totalPoints') ?? 0) + player.length);
     
     if (player.length > currentHighScore) {
@@ -259,7 +260,7 @@ class GamePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // الكاميرا تتبع اللاعب بدقة تامة لمنع اللون الأبيض
+    // الكاميرا تتبع اللاعب وتمنع اللون الأبيض
     canvas.translate(sz.width / 2 - player.body.first.dx, sz.height / 2 - player.body.first.dy);
     canvas.drawRect(Rect.fromLTWH(0, 0, worldSize, worldSize), Paint()..color = Colors.green.shade900);
     for (var f in food) canvas.drawCircle(f, 10, Paint()..color = Colors.yellowAccent);
