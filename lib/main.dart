@@ -14,17 +14,21 @@ void main() async {
   try {
     await Firebase.initializeApp();
     await google.MobileAds.instance.initialize();
-    yandex.MobileAds.initialize();
+    yandex.MobileAds.initialize(); 
   } catch (e) {
-    debugPrint("Init Error: $e");
+    debugPrint("Initialization Error: $e");
   }
   runApp(MaterialApp(home: StartScreen(), debugShowCheckedModeBanner: false));
 }
 
 class Snake {
-  List<Offset> body = []; List<double> angles = [];
+  List<Offset> body = [];
+  List<double> angles = [];
   double angle = 0.0, targetAngle = 0.0;
-  int length; bool isBoosting = false; Color? skinColor;
+  int length;
+  bool isBoosting = false;
+  Color? skinColor;
+
   Snake({required Offset startPos, this.skinColor, this.length = 60}) {
     body = List.generate(length, (i) => startPos);
     angles = List.generate(length, (i) => 0.0);
@@ -73,19 +77,6 @@ class _StartScreenState extends State<StartScreen> {
     });
   }
 
-  void _buySkin(String name) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (unlockedSkins.contains(name)) {
-      setState(() => selectedColor = skinLibrary[name]!);
-      await prefs.setString('selectedSkin', name);
-    } else if (totalPoints >= 500) {
-      setState(() { totalPoints -= 500; unlockedSkins.add(name); selectedColor = skinLibrary[name]!; });
-      await prefs.setInt('totalPoints', totalPoints);
-      await prefs.setStringList('unlockedSkins', unlockedSkins);
-      await prefs.setString('selectedSkin', name);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     Size s = MediaQuery.of(context).size;
@@ -94,22 +85,20 @@ class _StartScreenState extends State<StartScreen> {
       body: Stack(
         children: [
           Center(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text("SNAKE PRO", style: TextStyle(color: Colors.orangeAccent, fontSize: 60, fontWeight: FontWeight.bold)),
-                  Text("💰 Points: $totalPoints", style: const TextStyle(color: Colors.amber, fontSize: 20)),
-                  const SizedBox(height: 30),
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: skinLibrary.keys.map((name) => _skinCircle(name)).toList()),
-                  const SizedBox(height: 40),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 20), shape: const StadiumBorder()),
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => SnakeIoPro(color: selectedColor, isMuted: isMuted))).then((_) => _loadData()),
-                    child: const Text("PLAY", style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text("SNAKE PRO", style: TextStyle(color: Colors.orangeAccent, fontSize: 60, fontWeight: FontWeight.bold)),
+                Text("💰 Points: $totalPoints", style: const TextStyle(color: Colors.amber, fontSize: 20)),
+                const SizedBox(height: 30),
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: skinLibrary.keys.map((name) => _skinCircle(name)).toList()),
+                const SizedBox(height: 40),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 20), shape: const StadiumBorder()),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => SnakeIoPro(color: selectedColor, isMuted: isMuted))).then((_) => _loadData()),
+                  child: const Text("PLAY", style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold)),
+                ),
+              ],
             ),
           ),
           if (_isBannerAdLoaded) Positioned(bottom: 0, width: s.width, height: 50, child: google.AdWidget(ad: _bannerAd!)),
@@ -121,7 +110,11 @@ class _StartScreenState extends State<StartScreen> {
   Widget _skinCircle(String name) {
     bool unlocked = unlockedSkins.contains(name);
     return GestureDetector(
-      onTap: () => _buySkin(name),
+      onTap: () async {
+        final prefs = await SharedPreferences.getInstance();
+        if (unlocked) { setState(() => selectedColor = skinLibrary[name]!); prefs.setString('selectedSkin', name); }
+        else if (totalPoints >= 500) { setState(() { totalPoints -= 500; unlockedSkins.add(name); }); prefs.setInt('totalPoints', totalPoints); prefs.setStringList('unlockedSkins', unlockedSkins); }
+      },
       child: Container(margin: const EdgeInsets.all(8), decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: selectedColor == skinLibrary[name] ? Colors.white : Colors.transparent, width: 3)), child: CircleAvatar(backgroundColor: skinLibrary[name], radius: 20, child: unlocked ? null : const Icon(Icons.lock, size: 15, color: Colors.white))),
     );
   }
@@ -139,6 +132,7 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   final double worldSize = 5000.0; Timer? gameLoop;
   ui.Image? head, body;
   final AudioPlayer bgPlayer = AudioPlayer(), fxPlayer = AudioPlayer();
+  
   google.InterstitialAd? _googleAd;
   yandex.InterstitialAd? _yandexAd;
 
@@ -154,9 +148,18 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   }
 
   void _loadDualAds() {
-    google.InterstitialAd.load(adUnitId: 'ca-app-pub-3940256099942544/1033173712', request: const google.AdRequest(), adLoadCallback: google.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null));
-    final loader = yandex.InterstitialAdLoader(onAdLoaded: (ad) => setState(() => _yandexAd = ad), onAdFailedToLoad: (e) => _yandexAd = null);
-    loader.loadAd(adRequestConfiguration: const yandex.AdRequestConfiguration(adUnitId: 'R-M-DEMO-interstitial'));
+    google.InterstitialAd.load(
+      adUnitId: 'ca-app-pub-3940256099942544/1033173712',
+      request: const google.AdRequest(),
+      adLoadCallback: google.InterstitialAdLoadCallback(onAdLoaded: (ad) => _googleAd = ad, onAdFailedToLoad: (e) => _googleAd = null),
+    );
+    
+    // تحميل ياندكس 7.7.0 (السينتكس المستقر)
+    yandex.InterstitialAd.create(
+      adUnitId: 'R-M-DEMO-interstitial',
+      onAdLoaded: (ad) => setState(() => _yandexAd = ad),
+      onAdFailedToLoad: (error) => _yandexAd = null,
+    );
   }
 
   void _playMusic() async { await bgPlayer.setReleaseMode(ReleaseMode.loop); await bgPlayer.play(AssetSource('audio/music.mp3')); await bgPlayer.setVolume(0.3); }
@@ -212,7 +215,7 @@ class _SnakeIoProState extends State<SnakeIoPro> {
     await prefs.setInt('totalPoints', (prefs.getInt('totalPoints') ?? 0) + player.length);
     if (player.length > (prefs.getInt('highScore') ?? 0)) {
       await prefs.setInt('highScore', player.length);
-      FirebaseFirestore.instance.collection('leaderboard').add({'name': 'Player', 'score': player.length});
+      try { FirebaseFirestore.instance.collection('leaderboard').add({'name': 'Player', 'score': player.length}); } catch (e) {}
     }
     if (_googleAd != null) _googleAd!.show(); else if (_yandexAd != null) _yandexAd!.show();
     if (!widget.isMuted) await fxPlayer.play(AssetSource('audio/die.wav'));
@@ -248,8 +251,10 @@ class GamePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // إصلاح الكاميرا: تتبع الرأس وتمنع اللون الأبيض
     canvas.translate(sz.width / 2 - player.body.first.dx, sz.height / 2 - player.body.first.dy);
     canvas.drawRect(Rect.fromLTWH(0, 0, worldSize, worldSize), Paint()..color = Colors.green.shade900);
+    
     for (var f in food) canvas.drawCircle(f, 10, Paint()..color = Colors.yellowAccent);
     if (head != null && body != null) {
       for (var b in bots) _drawSnake(canvas, b, b.skinColor);
