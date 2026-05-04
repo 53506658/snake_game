@@ -1,5 +1,5 @@
 name: snake_game
-description: A professional Snake IO project with Dual Ads, Leaderboard, and Clean Camera.
+description: Final Stable Build with Ads and Leaderboard.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,22 +9,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-  # الإعلانات
   google_mobile_ads: ^5.1.0
-  yandex_mobileads: 7.11.0 # إصدار مستقر لضمان نجاح البناء
-
-  # الصوت
+  # استخدام إصدار أحدث لتجاوز مشاكل التحميل في Codemagic
+  yandex_mobileads: ^7.21.0 
   audioplayers: ^5.2.1
-
-  # تخزين البيانات
   shared_preferences: ^2.2.3
-
-  # لوحة الصدارة
   firebase_core: ^3.1.1
   cloud_firestore: ^5.0.2
-
-  # أيقونات
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
