@@ -13,7 +13,7 @@ dependencies:
   # إعلانات جوجل (AdMob)
   google_mobile_ads: ^5.1.0
 
-  # إعلانات ياندكس (Yandex Ads) - تم تصحيح الاسم هنا
+  # إعلانات ياندكس (Yandex Ads) - الإصدار الأحدث المستقر
   yandex_mobileads: ^7.18.0
 
   # مكتبة الأصوات (الموسيقى وتأثيرات الأكل)
@@ -45,13 +45,13 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
 
-  # تعريف جميع ملفات الوسائط (الصور والأصوات)
+  # تعريف جميع ملفات الوسائط (الصور والأصوات) بدقة
   assets:
-    # صور الثعبان الكرتوني
+    # صور الثعبان
     - assets/head.png
     - assets/body.png
     - assets/tail.png
-    # صور الخلفيات والمستويات
+    # صور الخلفيات
     - assets/forest.png
     - assets/desert.jpg
     - assets/snow.jpg
