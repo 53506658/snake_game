@@ -3,10 +3,10 @@ import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,218 +14,324 @@ void main() async {
     await Firebase.initializeApp();
     await MobileAds.instance.initialize();
   } catch (e) {
-    debugPrint("Init Error: $e");
+    debugPrint("Initialization Error: $e");
   }
-  runApp(MaterialApp(home: StartScreen(), debugShowCheckedModeBanner: false));
+  runApp(MaterialApp(home: StartScreen(), debugShowCheckedModeBanner: false, theme: ThemeData.dark()));
 }
 
+// --- نموذج الثعبان (للاعب والبوتات) ---
 class Snake {
-  List<Offset> body = []; List<double> angles = [];
-  double angle = 0.0, targetAngle = 0.0;
-  int length; bool isBoosting = false; Color? skinColor;
-  Snake({required Offset startPos, this.skinColor, this.length = 60}) {
+  List<Offset> body = [];
+  double angle = 0.0;
+  double speed = 5.0;
+  int length = 20;
+  Color color;
+  bool isInvisible = false;
+  bool hasMagnet = false;
+  bool isAlive = true;
+
+  Snake({required Offset startPos, required this.color}) {
     body = List.generate(length, (i) => startPos);
-    angles = List.generate(length, (i) => 0.0);
+  }
+
+  void move(double worldSize) {
+    Offset head = body.first;
+    Offset next = Offset(
+      (head.dx + cos(angle) * speed).clamp(0, worldSize),
+      (head.dy + sin(angle) * speed).clamp(0, worldSize)
+    );
+    body.insert(0, next);
+    if (body.length > length) body.removeLast();
   }
 }
 
+// --- شاشة البداية ---
 class StartScreen extends StatefulWidget {
   @override
   _StartScreenState createState() => _StartScreenState();
 }
 
 class _StartScreenState extends State<StartScreen> {
-  int highScore = 0, totalPoints = 0;
-  Color selectedColor = Colors.orange;
-  List<String> unlockedSkins = ['orange'];
+  int totalCoins = 0;
+  double sensitivity = 0.5;
   BannerAd? _bannerAd;
   bool _isBannerAdLoaded = false;
 
-  final Map<String, Color> skinLibrary = {
-    'orange': Colors.orange, 'blue': Colors.blue, 'green': Colors.green, 'purple': Colors.purple, 'red': Colors.red,
-  };
-
   @override
-  void initState() { super.initState(); _loadData(); _loadBannerAd(); }
+  void initState() { super.initState(); _loadData(); _loadBanner(); }
 
-  void _loadBannerAd() {
+  _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      totalCoins = prefs.getInt('coins') ?? 0;
+      sensitivity = prefs.getDouble('sensitivity') ?? 0.5;
+    });
+  }
+
+  void _loadBanner() {
     _bannerAd = BannerAd(
       adUnitId: 'ca-app-pub-3940256099942544/6300978111',
       size: AdSize.banner,
       request: const AdRequest(),
-      listener: BannerAdListener(
-        onAdLoaded: (_) => setState(() => _isBannerAdLoaded = true),
-        onAdFailedToLoad: (ad, e) => ad.dispose(),
-      ),
+      listener: BannerAdListener(onAdLoaded: (_) => setState(() => _isBannerAdLoaded = true), onAdFailedToLoad: (ad, e) => ad.dispose()),
     )..load();
-  }
-
-  void _loadData() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      highScore = prefs.getInt('highScore') ?? 0;
-      totalPoints = prefs.getInt('totalPoints') ?? 0;
-      unlockedSkins = prefs.getStringList('unlockedSkins') ?? ['orange'];
-      selectedColor = skinLibrary[prefs.getString('selectedSkin') ?? 'orange']!;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
-    Size s = MediaQuery.of(context).size;
     return Scaffold(
-      backgroundColor: Colors.black,
       body: Stack(
         children: [
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text("SNAKE PRO", style: TextStyle(color: Colors.orangeAccent, fontSize: 60, fontWeight: FontWeight.bold)),
-                Text("💰 Points: $totalPoints", style: const TextStyle(color: Colors.amber, fontSize: 20)),
+                const Text("SNAKE IO PRO", style: TextStyle(color: Colors.orange, fontSize: 60, fontWeight: FontWeight.bold)),
+                Text("Total Coins: $totalCoins 💰", style: const TextStyle(fontSize: 22)),
                 const SizedBox(height: 40),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 20), shape: const StadiumBorder()),
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => SnakeIoPro(color: selectedColor, highScore: highScore))).then((_) => _loadData()),
-                  child: const Text("PLAY", style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 20)),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => GameScreen(sensitivity: sensitivity))).then((_) => _loadData()),
+                  child: const Text("PLAY NOW", style: TextStyle(fontSize: 25, color: Colors.white)),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => LeaderboardScreen())),
+                  icon: const Icon(Icons.leaderboard),
+                  label: const Text("GLOBAL LEADERBOARD"),
                 ),
               ],
             ),
           ),
-          if (_isBannerAdLoaded) Positioned(bottom: 0, width: s.width, height: 50, child: AdWidget(ad: _bannerAd!)),
+          Positioned(top: 50, right: 20, child: IconButton(icon: const Icon(Icons.settings, size: 35), onPressed: _showSettings)),
+          if (_isBannerAdLoaded) Positioned(bottom: 0, width: MediaQuery.of(context).size.width, height: 50, child: AdWidget(ad: _bannerAd!)),
         ],
       ),
     );
   }
 
-  @override void dispose() { _bannerAd?.dispose(); super.dispose(); }
+  void _showSettings() {
+    showDialog(context: context, builder: (c) => StatefulBuilder(builder: (c, setST) => AlertDialog(
+      title: const Text("Settings"),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Text("Control Sensitivity"),
+        Slider(value: sensitivity, onChanged: (v) { setST(() => sensitivity = v); setState(() => sensitivity = v); SharedPreferences.getInstance().then((p) => p.setDouble('sensitivity', v)); }),
+      ]),
+    )));
+  }
 }
 
-class SnakeIoPro extends StatefulWidget {
-  final Color color; final int highScore;
-  SnakeIoPro({required this.color, required this.highScore});
-  @override _SnakeIoProState createState() => _SnakeIoProState();
+// --- شاشة لوحة الصدارة ---
+class LeaderboardScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Global Top 10")),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('leaderboard').orderBy('score', descending: true).limit(10).snapshots(),
+        builder: (context, snap) {
+          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+          return ListView.builder(
+            itemCount: snap.data!.docs.length,
+            itemBuilder: (c, i) => ListTile(
+              leading: Text("#${i+1}", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              title: Text(snap.data!.docs[i]['name']),
+              trailing: Text("${snap.data!.docs[i]['score']} pts", style: const TextStyle(color: Colors.orange, fontSize: 18)),
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
-class _SnakeIoProState extends State<SnakeIoPro> {
-  late Snake player; List<Snake> bots = []; List<Offset> food = [];
-  final double worldSize = 5000.0; Timer? gameLoop;
-  ui.Image? head, body;
-  final AudioPlayer bgPlayer = AudioPlayer(), fxPlayer = AudioPlayer();
-  InterstitialAd? _googleAd;
+// --- شاشة اللعبة الأساسية ---
+class GameScreen extends StatefulWidget {
+  final double sensitivity;
+  GameScreen({required this.sensitivity});
+  @override _GameScreenState createState() => _GameScreenState();
+}
+
+class _GameScreenState extends State<GameScreen> {
+  late Snake player;
+  List<Snake> bots = [];
+  List<Offset> food = [];
+  List<Offset> powerUps = [];
+  final double worldSize = 5000.0;
+  Timer? timer;
+  int score = 0;
+  final AudioPlayer fxPlayer = AudioPlayer();
+  InterstitialAd? _interstitialAd;
 
   @override
   void initState() {
     super.initState();
-    player = Snake(startPos: const Offset(2500, 2500), skinColor: widget.color);
-    bots = List.generate(5, (i) => Snake(startPos: Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize), skinColor: Colors.blue));
+    player = Snake(startPos: const Offset(2500, 2500), color: Colors.orange);
+    bots = List.generate(15, (i) => Snake(startPos: Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize), color: Colors.redAccent));
     food = List.generate(200, (i) => Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize));
-    _loadInterstitialAd();
-    _playMusic();
-    gameLoop = Timer.periodic(const Duration(milliseconds: 16), (t) => updateGame());
+    powerUps = List.generate(5, (i) => Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize));
+    
+    _loadInterstitial();
+    timer = Timer.periodic(const Duration(milliseconds: 16), (t) => _gameLoop());
   }
 
-  void _loadInterstitialAd() {
-    InterstitialAd.load(
-      adUnitId: 'ca-app-pub-3940256099942544/1033173712',
-      request: const AdRequest(),
-      adLoadCallback: InterstitialAdLoadCallback(
-        onAdLoaded: (ad) => _googleAd = ad,
-        onAdFailedToLoad: (e) => _googleAd = null,
-      ),
-    );
+  void _loadInterstitial() {
+    InterstitialAd.load(adUnitId: 'ca-app-pub-3940256099942544/1033173712', request: const AdRequest(), adLoadCallback: InterstitialAdLoadCallback(onAdLoaded: (ad) => _interstitialAd = ad, onAdFailedToLoad: (e) => _interstitialAd = null));
   }
 
-  void _playMusic() async { await bgPlayer.setReleaseMode(ReleaseMode.loop); await bgPlayer.play(AssetSource('audio/music.mp3')); await bgPlayer.setVolume(0.3); }
-
-  void updateGame() {
+  void _gameLoop() {
     if (!mounted) return;
     setState(() {
-      double diff = player.targetAngle - player.angle;
-      while (diff < -pi) diff += 2 * pi;
-      while (diff > pi) diff -= 2 * pi;
-      player.angle += diff * 0.15;
-      _move(player); _checkFood(player);
-      for (var b in bots) {
-        if (Random().nextInt(100) < 5) b.angle += (Random().nextDouble() - 0.5);
-        _move(b);
-        if ((player.body.first - b.body.first).distance < 45) _end();
+      player.move(worldSize);
+      
+      // تحريك الأعداء وذكاء الأكل
+      for (var bot in bots) {
+        if (food.isNotEmpty) {
+          Offset target = food.first;
+          bot.angle = atan2(target.dy - bot.body.first.dy, target.dx - bot.body.first.dx);
+        }
+        bot.move(worldSize);
       }
+
+      // نظام المغناطيس
+      if (player.hasMagnet) {
+        for (int i = 0; i < food.length; i++) {
+          if ((food[i] - player.body.first).distance < 300) {
+            food[i] = Offset.lerp(food[i], player.body.first, 0.15)!;
+          }
+        }
+      }
+
+      _checkCollisions();
+      _eatLogic();
     });
   }
 
-  void _move(Snake s) {
-    double spd = (s.isBoosting ? 12.0 : 6.0);
-    s.body.insert(0, Offset((s.body.first.dx + cos(s.angle)*spd).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*spd).clamp(0, worldSize)));
-    s.angles.insert(0, s.angle);
-    if (s.body.length > s.length) { s.body.removeLast(); s.angles.removeLast(); }
-  }
-
-  void _checkFood(Snake s) {
+  void _eatLogic() {
     food.removeWhere((f) {
-      if ((f - s.body.first).distance < 60) {
-        s.length += 5;
-        if (s == player) fxPlayer.play(AssetSource('audio/eat.mp3'));
+      if ((f - player.body.first).distance < 30) {
+        player.length += 2; score += 10;
+        fxPlayer.play(AssetSource('audio/eat.mp3'), mode: PlayerMode.lowLatency);
         return true;
       }
       return false;
     });
+    
+    powerUps.removeWhere((p) {
+      if ((p - player.body.first).distance < 40) {
+        _activatePower();
+        return true;
+      }
+      return false;
+    });
+
     if (food.length < 200) food.add(Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize));
   }
 
-  void _end() async {
-    gameLoop?.cancel(); bgPlayer.stop();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('totalPoints', (prefs.getInt('totalPoints') ?? 0) + player.length);
-    if (player.length > widget.highScore) {
-      await prefs.setInt('highScore', player.length);
-      try { FirebaseFirestore.instance.collection('leaderboard').add({'name': 'Player', 'score': player.length}); } catch (e) {}
+  void _activatePower() {
+    if (Random().nextBool()) {
+      player.hasMagnet = true;
+      Future.delayed(const Duration(seconds: 10), () => setState(() => player.hasMagnet = false));
+    } else {
+      player.isInvisible = true;
+      Future.delayed(const Duration(seconds: 10), () => setState(() => player.isInvisible = false));
     }
-    if (_googleAd != null) _googleAd!.show();
-    await fxPlayer.play(AssetSource('audio/die.wav'));
+  }
+
+  void _checkCollisions() {
+    for (var bot in bots) {
+      if (player.isInvisible) continue;
+      // الكبير يأكل الصغير
+      if ((player.body.first - bot.body.first).distance < 40) {
+        if (player.length > bot.length) {
+          bot.body = [Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize)];
+          player.length += 10; score += 50;
+        } else {
+          _gameOver();
+        }
+      }
+    }
+  }
+
+  void _gameOver() async {
+    timer?.cancel();
+    if (score > 0) {
+      FirebaseFirestore.instance.collection('leaderboard').add({
+        'name': 'Player_${Random().nextInt(100)}',
+        'score': score,
+        'time': FieldValue.serverTimestamp()
+      });
+    }
+    final p = await SharedPreferences.getInstance();
+    await p.setInt('coins', (p.getInt('coins') ?? 0) + (score ~/ 10));
+    
+    fxPlayer.play(AssetSource('audio/die.wav'), mode: PlayerMode.lowLatency);
+    if (_interstitialAd != null) _interstitialAd!.show();
     Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    Size s = MediaQuery.of(context).size;
     return Scaffold(
       body: Stack(
         children: [
-          CustomPaint(size: Size.infinite, painter: GamePainter(player: player, bots: bots, food: food, sz: s, worldSize: worldSize)),
-          Positioned(bottom: 50, left: 50, child: _boostBtn()),
-          Positioned(bottom: 50, right: 50, child: _controls()),
+          GestureDetector(
+            onPanUpdate: (d) => setState(() => player.angle += d.delta.dx * 0.02 * (widget.sensitivity * 2)),
+            child: CustomPaint(
+              size: Size.infinite,
+              painter: GamePainter(player: player, bots: bots, food: food, worldSize: worldSize, powerUps: powerUps),
+            ),
+          ),
+          // رادار الخريطة المصغرة
+          Positioned(top: 50, right: 20, child: Container(
+            width: 130, height: 130, decoration: BoxDecoration(color: Colors.black54, border: Border.all(color: Colors.white24)),
+            child: CustomPaint(painter: MiniMapPainter(player: player, bots: bots, worldSize: worldSize)),
+          )),
+          Positioned(top: 50, left: 20, child: Text("SCORE: $score", style: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold))),
+          Positioned(bottom: 50, right: 30, child: FloatingActionButton(
+            backgroundColor: Colors.orange.withOpacity(0.6),
+            onPressed: () {}, 
+            onLongPress: () => setState(() => player.speed = 10),
+            onLongPressEnd: (_) => setState(() => player.speed = 5),
+            child: const Icon(Icons.bolt, size: 35),
+          )),
         ],
       ),
     );
   }
-
-  Widget _boostBtn() => GestureDetector(onTapDown: (_) => setState(() => player.isBoosting = true), onTapUp: (_) => setState(() => player.isBoosting = false), child: CircleAvatar(radius: 35, backgroundColor: Colors.orange.withOpacity(0.6), child: const Icon(Icons.bolt, color: Colors.white, size: 40)));
-  Widget _controls() => Column(children: [_btn(Icons.arrow_upward, -pi/2), Row(children: [_btn(Icons.arrow_back, pi), const SizedBox(width: 40), _btn(Icons.arrow_forward, 0)]), _btn(Icons.arrow_downward, pi/2)]);
-  Widget _btn(IconData i, double a) => GestureDetector(onTap: () => setState(() => player.targetAngle = a), child: Container(padding: const EdgeInsets.all(12), decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle), child: Icon(i, color: Colors.white, size: 35)));
-
-  @override
-  void dispose() { gameLoop?.cancel(); bgPlayer.dispose(); fxPlayer.dispose(); _googleAd?.dispose(); super.dispose(); }
 }
 
 class GamePainter extends CustomPainter {
-  final Snake player; final List<Snake> bots; final List<Offset> food; final Size sz; final double worldSize;
-  GamePainter({required this.player, required this.bots, required this.food, required this.sz, required this.worldSize});
+  final Snake player; final List<Snake> bots; final List<Offset> food; final List<Offset> powerUps; final double worldSize;
+  GamePainter({required this.player, required this.bots, required this.food, required this.worldSize, required this.powerUps});
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.translate(sz.width / 2 - player.body.first.dx, sz.height / 2 - player.body.first.dy);
+    // الكاميرا تتبع اللاعب وتمنع اللون الأبيض
+    canvas.translate(size.width / 2 - player.body.first.dx, size.height / 2 - player.body.first.dy);
     canvas.drawRect(Rect.fromLTWH(0, 0, worldSize, worldSize), Paint()..color = Colors.green.shade900);
+    
     for (var f in food) canvas.drawCircle(f, 10, Paint()..color = Colors.yellowAccent);
-    for (var b in bots) _drawSnake(canvas, b);
-    _drawSnake(canvas, player);
-  }
+    for (var p in powerUps) canvas.drawCircle(p, 25, Paint()..color = Colors.purpleAccent..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8));
 
-  void _drawSnake(Canvas canvas, Snake s) {
-    for (int i = 0; i < s.body.length; i++) {
-      if (i % 5 != 0) continue;
-      canvas.drawCircle(s.body[i], i == 0 ? 25 : 18, Paint()..color = s.skinColor ?? Colors.orange);
+    for (var bot in bots) {
+      for (var segment in bot.body) canvas.drawCircle(segment, 18, Paint()..color = bot.color);
     }
+    for (var segment in player.body) {
+      canvas.drawCircle(segment, 22, Paint()..color = player.color.withOpacity(player.isInvisible ? 0.4 : 1.0));
+    }
+  }
+  @override bool shouldRepaint(covariant CustomPainter old) => true;
+}
+
+class MiniMapPainter extends CustomPainter {
+  final Snake player; final List<Snake> bots; final double worldSize;
+  MiniMapPainter({required this.player, required this.bots, required this.worldSize});
+  @override
+  void paint(Canvas canvas, Size size) {
+    double scale = size.width / worldSize;
+    canvas.drawCircle(player.body.first * scale, 5, Paint()..color = Colors.white);
+    for (var bot in bots) canvas.drawCircle(bot.body.first * scale, 3, Paint()..color = Colors.red);
   }
   @override bool shouldRepaint(covariant CustomPainter old) => true;
 }
