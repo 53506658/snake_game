@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # تحديث لـ v4
+        uses: actions/checkout@v4
 
       - name: Set up Java
-        uses: actions/setup-java@v4 # تحديث لـ v4
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -26,11 +26,15 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      # --- الخطوة السحرية: توليد الأيقونات تلقائياً على السيرفر ---
+      - name: Generate App Icons
+        run: flutter pub run flutter_launcher_icons
+
       - name: Build APK
-        run: flutter build apk --release --no-tree-shake-icons
+        run: flutter build apk --debug
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4 # الحل: التحديث لـ v4
+        uses: actions/upload-artifact@v4
         with:
-          name: snake-game-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: snake-game-final-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
