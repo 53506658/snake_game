@@ -26,7 +26,7 @@ if (flutterVersionName == null) {
 }
 
 android {
-    namespace "com.example.snake_game" // تأكد أن هذا المعرف يطابق مشروعك
+    namespace "com.example.snake_game_full" // تأكد أن هذا المعرف يطابق مشروعك
     compileSdkVersion 34
 
     compileOptions {
@@ -39,8 +39,8 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.example.snake_game"
-        minSdkVersion 23 // ضروري لمكتبات الإعلانات الحديثة
+        applicationId "com.example.snake_game_full"
+        minSdkVersion 28 // ضروري لمكتبات الإعلانات الحديثة
         targetSdkVersion 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
