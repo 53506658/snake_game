@@ -1,72 +1,41 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
-    // الطريقة الحديثة بدلاً من apply from flutter.gradle
     id "dev.flutter.flutter-gradle-plugin"
-    // تفعيل خدمات جوجل (Firestore ولوحة الصدارة)
-    id "com.google.gms.google-services"
-}
-
-def localProperties = new Properties()
-def localPropertiesFile = rootProject.file('local.properties')
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.withInputStream { stream ->
-        localProperties.load(stream)
-    }
-}
-
-def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
-if (flutterVersionCode == null) {
-    flutterVersionCode = '1'
-}
-
-def flutterVersionName = localProperties.getProperty('flutter.versionName')
-if (flutterVersionName == null) {
-    flutterVersionName = '1.0'
 }
 
 android {
-    namespace "com.example.snake_game_full" // تأكد أن هذا المعرف يطابق مشروعك
-    compileSdkVersion 34
+    // السطر المطلوب لحل مشكلة التحذير في GitHub
+    ndkVersion = "28.2.13676358" 
 
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-
-    kotlinOptions {
-        jvmTarget = '1.8'
-    }
+    namespace = "com.example.snake_game"
+    compileSdk = flutter.compileSdkVersion
 
     defaultConfig {
-        applicationId "com.example.snake_game_full"
-        minSdkVersion 28 // ضروري لمكتبات الإعلانات الحديثة
-        targetSdkVersion 34
-        versionCode flutterVersionCode.toInteger()
-        versionName flutterVersionName
-
-        // تفعيل Multidex لمنع أخطاء كثرة المكتبات
-        multiDexEnabled true
+        // يجب أن يطابق هذا الاسم ما هو موجود في Firebase
+        applicationId = "com.example.snake_game" 
+        
+        minSdk = 21
+        targetSdk = flutter.targetSdkVersion
+        versionCode = 1
+        versionName = "1.0.0"
     }
 
     buildTypes {
         release {
-            // قم بإضافة إعدادات التوقيع هنا لاحقاً
-            signingConfig signingConfigs.debug
-            minifyEnabled false
-            shrinkResources false
+            signingConfig = signingConfigs.debug
+            shrinkResources = false
+            minifyEnabled = false
         }
     }
 }
 
+flutter {
+    source = "../.."
+}
+
 dependencies {
-    // دعم التقنيات الحديثة في Kotlin
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    
-    // مكتبة Multidex
-    implementation 'com.android.support:multidex:1.0.3'
-    
-    // تعريف منصة Firebase
-    implementation platform('com.google.firebase:firebase-bom:32.2.0')
+    // تأكد من وجود مكتبة خدمات جوجل لعمل الفايربيس والإعلانات
+    implementation platform('com.google.firebase:firebase-bom:32.7.0')
     implementation 'com.google.firebase:firebase-analytics'
 }

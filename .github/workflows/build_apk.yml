@@ -8,6 +8,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # إضافة هذا القسم لحل تحذير Node.js
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true 
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,7 +30,6 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      # --- الخطوة السحرية: توليد الأيقونات تلقائياً على السيرفر ---
       - name: Generate App Icons
         run: flutter pub run flutter_launcher_icons
 
