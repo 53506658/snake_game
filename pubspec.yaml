@@ -1,33 +1,63 @@
 name: snake_game
-description: Final Stable Version with Assets and Ads.
+description: Final Master Build - Snake IO Pro with Store, Leaderboard, and Assets.
+publish_to: 'none'
 version: 1.0.0+1
+
 environment:
   sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
+
+  # الإعلانات
   google_mobile_ads: ^5.1.0
-  audioplayers: ^5.2.1
-  shared_preferences: ^2.2.3
+
+  # لوحة الصدارة وقاعدة البيانات (Firebase)
   firebase_core: ^3.1.1
   cloud_firestore: ^5.0.2
+
+  # تخزين البيانات والعملات والجلود
+  shared_preferences: ^2.2.3
+
+  # الصوت والموسيقى
+  audioplayers: ^5.2.1
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # أداة توليد الأيقونات (مهمة جداً)
   flutter_launcher_icons: ^0.13.1
 
+# --- إعدادات أيقونة التطبيق ---
 flutter_launcher_icons:
-  android: true
+  android: "launcher_icon"
   ios: true
-  image_path: "assets/icon/game_icon.png"
+  image_path: "assets/icon/game_icon.png" # تأكد من وجود الصورة في هذا المسار
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true
+
+  # --- تعريف كافة المواد (Assets) ---
   assets:
+    # صور الثعبان
     - assets/head.png
     - assets/body.png
+    - assets/tail.png
+    
+    # صور الخلفيات (الخرائط)
     - assets/forest.png
+    - assets/desert.jpg
+    - assets/snow.jpg
+    
+    # أيقونة التطبيق
+    - assets/icon/game_icon.png
+    
+    # الملفات الصوتية
     - assets/audio/music.mp3
     - assets/audio/eat.mp3
     - assets/audio/die.wav
