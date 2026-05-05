@@ -1,41 +1,29 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.snake_game">
-
-    <!-- الإنترنت مطلوب للإعلانات -->
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://android.com">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-
     <application
-        android:label="snake_game"
-        android:icon="@mipmap/ic_launcher">
-
-        <!-- 🔹 AdMob App ID (تجريبي) -->
+        android:label="Snake IO Pro"
+        android:name=".MainActivity"
+        android:icon="@mipmap/launcher_icon">
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-3940256099942544~3347511713"/>
-
-        <!-- Flutter Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
-
-            <!-- تشغيل التطبيق -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-
         </activity>
-
-        <!-- Flutter embedding -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-
     </application>
 </manifest>
