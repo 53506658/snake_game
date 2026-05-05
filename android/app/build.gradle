@@ -5,16 +5,25 @@ plugins {
 }
 
 android {
-    // السطر المطلوب لحل مشكلة التحذير في GitHub
+    // 1. حل تحذير الـ NDK
     ndkVersion = "28.2.13676358" 
 
     namespace = "com.example.snake_game"
     compileSdk = flutter.compileSdkVersion
 
+    compileOptions {
+        // 2. توحيد إصدار الجافا مع الكوتلن (حل الخطأ الرئيسي)
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        // 3. ضبط هدف الكوتلن ليكون 17
+        jvmTarget = '17'
+    }
+
     defaultConfig {
-        // يجب أن يطابق هذا الاسم ما هو موجود في Firebase
-        applicationId = "com.example.snake_game" 
-        
+        applicationId = "com.example.snake_game"
         minSdk = 21
         targetSdk = flutter.targetSdkVersion
         versionCode = 1
@@ -24,8 +33,8 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.debug
-            shrinkResources = false
-            minifyEnabled = false
+            shrinkResources false
+            minifyEnabled false
         }
     }
 }
@@ -35,7 +44,7 @@ flutter {
 }
 
 dependencies {
-    // تأكد من وجود مكتبة خدمات جوجل لعمل الفايربيس والإعلانات
+    // إعدادات Firebase
     implementation platform('com.google.firebase:firebase-bom:32.7.0')
     implementation 'com.google.firebase:firebase-analytics'
 }
