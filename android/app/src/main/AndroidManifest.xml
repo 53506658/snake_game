@@ -1,19 +1,19 @@
 <manifest xmlns:android="http://android.com"
-    package="com.example.snake_game"> <!-- تأكد أن هذا الاسم يطابق applicationId في build.gradle -->
+    xmlns:tools="http://android.com"
+    package="com.example.snake_game">
 
-    <!-- صلاحيات الإنترنت والشبكة لعمل الإعلانات ولوحة الصدارة -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
     <application
         android:label="Snake IO Pro"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/launcher_icon"
+        tools:replace="android:label"> <!-- هذا السطر يحل مشكلة تعارض الأسماء -->
 
-        <!-- سطر إعلانات جوجل (AdMob) - ضروري جداً لمنع الانهيار -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713"/> <!-- هذا معرّف تجريبي -->
+            android:value="ca-app-pub-3940256099942544~3347511713"/>
 
         <activity
             android:name=".MainActivity"
@@ -27,8 +27,7 @@
             
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
-              android:resource="@style/NormalTheme"
-              />
+              android:resource="@style/NormalTheme" />
             
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -41,7 +40,6 @@
             android:value="2" />
     </application>
 
-    <!-- معالجة الاستعلامات لنظام أندرويد 11 فما فوق -->
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW" />
