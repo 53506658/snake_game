@@ -13,28 +13,46 @@ void main() async {
   try {
     await Firebase.initializeApp();
     ads.MobileAds.instance.initialize();
-  } catch (e) { debugPrint("Init Error: $e"); }
+  } catch (e) { debugPrint("Firebase/Ads Error: $e"); }
   runApp(MaterialApp(home: StartScreen(), debugShowCheckedModeBanner: false, theme: ThemeData.dark()));
 }
 
+// --- نموذج الثعبان ---
 class Snake {
-  List<Offset> body = []; List<double> angles = [];
-  double angle = 0.0; int length; Color skinColor; bool isBoosting = false;
+  List<Offset> body = [];
+  List<double> angles = [];
+  double angle = 0.0;
+  int length;
+  Color skinColor;
+  bool isBoosting = false;
+
   Snake({required Offset startPos, required this.skinColor, this.length = 60}) {
     body = List.generate(length, (i) => startPos);
     angles = List.generate(length, (i) => 0.0);
   }
+
+  void move(double worldSize) {
+    double speed = isBoosting ? 9.0 : 4.5;
+    Offset head = body.first;
+    Offset next = Offset(
+      (head.dx + cos(angle) * speed).clamp(0, worldSize),
+      (head.dy + sin(angle) * speed).clamp(0, worldSize),
+    );
+    body.insert(0, next);
+    angles.insert(0, angle);
+    if (body.length > length) { body.removeLast(); angles.removeLast(); }
+  }
 }
 
+// --- شاشة البداية ---
 class StartScreen extends StatefulWidget {
   @override _StartScreenState createState() => _StartScreenState();
 }
 
 class _StartScreenState extends State<StartScreen> {
-  int totalPoints = 0; bool isMuted = false;
-  String selectedMap = 'assets/forest.png';
+  int totalPoints = 0;
+  bool isMuted = false;
   Color selectedColor = Colors.orange;
-  final Map<String, Color> skins = {'orange': Colors.orange, 'blue': Colors.blue, 'green': Colors.green, 'purple': Colors.purple, 'red': Colors.red};
 
   @override void initState() { super.initState(); _loadData(); }
 
@@ -43,56 +61,72 @@ class _StartScreenState extends State<StartScreen> {
     setState(() {
       totalPoints = p.getInt('totalPoints') ?? 0;
       isMuted = p.getBool('muted') ?? false;
-      selectedColor = skins[p.getString('selectedSkin') ?? 'orange']!;
+      String colorName = p.getString('selectedSkin') ?? 'orange';
+      if(colorName == 'blue') selectedColor = Colors.blue;
+      else if(colorName == 'green') selectedColor = Colors.green;
+      else selectedColor = Colors.orange;
     });
   }
 
   @override Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      body: Center(child: SingleChildScrollView(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Text("SNAKE PRO", style: TextStyle(color: Colors.orange, fontSize: 60, fontWeight: FontWeight.bold)),
         Text("💰 Points: $totalPoints", style: TextStyle(fontSize: 20, color: Colors.amber)),
         SizedBox(height: 30),
-        IconButton(icon: Icon(isMuted ? Icons.volume_off : Icons.volume_up, size: 50, color: Colors.orange), onPressed: () async {
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          ElevatedButton.icon(onPressed: () => _showShop(), icon: Icon(Icons.shopping_bag), label: Text("SHOP")),
+          SizedBox(width: 10),
+          ElevatedButton.icon(onPressed: () => _showLeaderboard(), icon: Icon(Icons.leaderboard), label: Text("RANKS")),
+        ]),
+        SizedBox(height: 20),
+        IconButton(icon: Icon(isMuted ? Icons.volume_off : Icons.volume_up, size: 45, color: Colors.orange), onPressed: () async {
           setState(() => isMuted = !isMuted); (await SharedPreferences.getInstance()).setBool('muted', isMuted);
         }),
-        SizedBox(height: 30),
+        SizedBox(height: 40),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: EdgeInsets.symmetric(horizontal: 80, vertical: 20)),
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => SnakeIoPro(color: selectedColor, map: selectedMap, isMuted: isMuted))).then((_) => _loadData()),
-          child: Text("PLAY GAME", style: TextStyle(fontSize: 25, color: Colors.white, fontWeight: FontWeight.bold)),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: EdgeInsets.symmetric(horizontal: 100, vertical: 20)),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => SnakeIoPro(color: selectedColor, isMuted: isMuted))).then((_) => _loadData()),
+          child: Text("PLAY GAME", style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold, color: Colors.white)),
         ),
-      ])),
+      ]))),
     );
   }
+
+  void _showShop() { /* كود المتجر المختصر */ }
+  void _showLeaderboard() { /* كود عرض لوحة الصدارة */ }
 }
 
+// --- شاشة اللعبة ---
 class SnakeIoPro extends StatefulWidget {
-  final Color color; final String map; final bool isMuted;
-  SnakeIoPro({required this.color, required this.map, required this.isMuted});
+  final Color color; final bool isMuted;
+  SnakeIoPro({required this.color, required this.isMuted});
   @override _SnakeIoProState createState() => _SnakeIoProState();
 }
 
 class _SnakeIoProState extends State<SnakeIoPro> {
   late Snake player; List<Snake> bots = []; List<Offset> food = [];
-  final double worldSize = 5000.0; Timer? gameLoop;
-  ui.Image? head, body, bg;
-  final AudioPlayer bgPlayer = AudioPlayer(), fxPlayer = AudioPlayer();
+  final double worldSize = 8000.0;
+  Timer? gameLoop;
+  ui.Image? headImg, bodyImg, tailImg, bgImg;
+  final AudioPlayer bgMusic = AudioPlayer(), fxPlayer = AudioPlayer();
 
   @override void initState() {
     super.initState();
-    player = Snake(startPos: Offset(2500, 2500), skinColor: widget.color);
-    bots = List.generate(12, (i) => Snake(startPos: Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize), skinColor: Colors.blue));
-    food = List.generate(150, (i) => Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize));
-    _loadAssets(); if (!widget.isMuted) _startMusic();
+    player = Snake(startPos: Offset(4000, 4000), skinColor: widget.color);
+    bots = List.generate(20, (i) => Snake(startPos: Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize), skinColor: Colors.accents[i % Colors.accents.length]));
+    food = List.generate(300, (i) => Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize));
+    _loadAssets();
+    if (!widget.isMuted) _startMusic();
     gameLoop = Timer.periodic(Duration(milliseconds: 16), (t) => _update());
   }
 
-  _startMusic() async { await bgPlayer.setReleaseMode(ReleaseMode.loop); await bgPlayer.play(AssetSource('audio/music.mp3'), volume: 0.3); }
+  _startMusic() async { await bgMusic.setReleaseMode(ReleaseMode.loop); await bgMusic.play(AssetSource('audio/music.mp3'), volume: 0.3); }
 
   _loadAssets() async {
-    head = await _img('assets/head.png'); body = await _img('assets/body.png'); bg = await _img(widget.map);
+    headImg = await _img('assets/head.png'); bodyImg = await _img('assets/body.png');
+    tailImg = await _img('assets/tail.png'); bgImg = await _img('assets/forest.png');
     setState(() {});
   }
 
@@ -105,49 +139,68 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   void _update() {
     if (!mounted) return;
     setState(() {
-      _move(player);
-      for (var b in bots) {
-        if (food.isNotEmpty) { Offset t = food.first; b.angle = atan2(t.dy - b.body.first.dy, t.dx - b.body.first.dx); }
-        _move(b);
-        if ((player.body.first - b.body.first).distance < 45) _gameOver();
-      }
+      player.move(worldSize);
       _checkFood(player);
-    });
-  }
 
-  void _move(Snake s) {
-    double speed = s.isBoosting ? 10.0 : 5.0;
-    Offset next = Offset((s.body.first.dx + cos(s.angle)*speed).clamp(0, worldSize), (s.body.first.dy + sin(s.angle)*speed).clamp(0, worldSize));
-    s.body.insert(0, next); s.angles.insert(0, s.angle);
-    if (s.body.length > s.length) { s.body.removeLast(); s.angles.removeLast(); }
+      for (var b in bots) {
+        if (food.isNotEmpty) {
+          Offset target = food.first;
+          b.angle = atan2(target.dy - b.body.first.dy, target.dx - b.body.first.dx);
+        }
+        b.move(worldSize);
+        _checkFood(b);
+        _checkCombat(b);
+      }
+    });
   }
 
   void _checkFood(Snake s) {
     food.removeWhere((f) {
       if ((f - s.body.first).distance < 50) {
-        s.length += 3; if (s == player && !widget.isMuted) fxPlayer.play(AssetSource('audio/eat.mp3'), mode: PlayerMode.lowLatency);
+        s.length += 3;
+        if (s == player && !widget.isMuted) fxPlayer.play(AssetSource('audio/eat.mp3'), mode: PlayerMode.lowLatency);
         return true;
       } return false;
     });
-    if (food.length < 150) food.add(Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize));
+    if (food.length < 300) food.add(Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize));
+  }
+
+  void _checkCombat(Snake bot) {
+    if ((player.body.first - bot.body.first).distance < 50) {
+      if (player.length > bot.length) {
+        bot.body = [Offset(Random().nextDouble()*worldSize, Random().nextDouble()*worldSize)];
+        bot.length = 40;
+        player.length += 20;
+      } else { _gameOver(); }
+    }
   }
 
   _gameOver() async {
-    gameLoop?.cancel(); bgPlayer.stop();
+    gameLoop?.cancel(); bgMusic.stop();
     if (!widget.isMuted) await fxPlayer.play(AssetSource('audio/die.wav'), mode: PlayerMode.lowLatency);
     final p = await SharedPreferences.getInstance();
-    await p.setInt('totalPoints', (p.getInt('totalPoints') ?? 0) + (player.length ~/ 5));
+    await p.setInt('totalPoints', (p.getInt('totalPoints') ?? 0) + (player.length ~/ 2));
     Navigator.pop(context);
   }
 
   @override Widget build(BuildContext context) {
     Size s = MediaQuery.of(context).size;
-    return Scaffold(body: Stack(children: [
-      CustomPaint(size: Size.infinite, painter: GamePainter(player: player, bots: bots, food: food, sz: s, head: head, body: body, bg: bg, worldSize: worldSize)),
-      Positioned(bottom: 40, left: 30, child: _joystick()),
-      Positioned(bottom: 50, right: 30, child: GestureDetector(onLongPress: () => setState(() => player.isBoosting = true), onLongPressEnd: (_) => setState(() => player.isBoosting = false), child: FloatingActionButton(onPressed: (){}, backgroundColor: Colors.orange, child: Icon(Icons.bolt)))),
-      Positioned(top: 40, left: 20, child: Text("Length: ${player.length}", style: TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold))),
-    ]));
+    return Scaffold(
+      body: Stack(children: [
+        CustomPaint(size: Size.infinite, painter: GamePainter(player: player, bots: bots, food: food, sz: s, head: headImg, body: bodyImg, tail: tailImg, bg: bgImg, worldSize: worldSize)),
+        
+        // رادار الخريطة
+        Positioned(top: 50, right: 20, child: Container(
+          width: 130, height: 130, decoration: BoxDecoration(color: Colors.black54, border: Border.all(color: Colors.white24), borderRadius: BorderRadius.circular(10)),
+          child: CustomPaint(painter: RadarPainter(player: player, bots: bots, worldSize: worldSize)),
+        )),
+
+        // التحكم
+        Positioned(bottom: 40, left: 30, child: _joystick()),
+        Positioned(bottom: 50, right: 30, child: GestureDetector(onLongPress: () => setState(() => player.isBoosting = true), onLongPressEnd: (_) => setState(() => player.isBoosting = false), child: FloatingActionButton(onPressed: (){}, backgroundColor: Colors.orange, child: Icon(Icons.bolt)))),
+        Positioned(top: 40, left: 20, child: Text("Length: ${player.length}", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
+      ]),
+    );
   }
 
   Widget _joystick() => Column(children: [
@@ -157,43 +210,50 @@ class _SnakeIoProState extends State<SnakeIoPro> {
   @override void dispose() { gameLoop?.cancel(); bgPlayer.dispose(); fxPlayer.dispose(); super.dispose(); }
 }
 
+// --- رسام اللعبة الاحترافي ---
 class GamePainter extends CustomPainter {
-  final Snake player; final List<Snake> bots; final List<Offset> food; final Size sz; final ui.Image? head, body, bg; final double worldSize;
-  GamePainter({required this.player, required this.bots, required this.food, required this.sz, this.head, this.body, this.bg, required this.worldSize});
+  final Snake player; final List<Snake> bots; final List<Offset> food; final Size sz;
+  final ui.Image? head, body, tail, bg; final double worldSize;
+  GamePainter({required this.player, required this.bots, required this.food, required this.sz, this.head, this.body, this.tail, this.bg, required this.worldSize});
 
   @override void paint(Canvas canvas, Size size) {
-    // 1. تثبيت الكاميرا في المنتصف لمنع الشاشة السوداء
     canvas.translate(sz.width / 2 - player.body.first.dx, sz.height / 2 - player.body.first.dy);
     
-    // 2. رسم لون أخضر ثابت كخلفية أساسية تحت الصورة لملء الفراغات
-    canvas.drawRect(Rect.fromLTWH(-1000, -1000, worldSize + 2000, worldSize + 2000), Paint()..color = Color(0xFF1B5E20));
-
+    // رسم الخلفية لتغطي كامل المساحة
     if (bg != null) {
-      // رسم الصورة لتغطي مساحة العالم
-      canvas.drawImageRect(bg!, Rect.fromLTWH(0, 0, bg!.width.toDouble(), bg!.height.toDouble()), Rect.fromLTWH(0, 0, worldSize, worldSize), Paint());
+       canvas.drawImageRect(bg!, Rect.fromLTWH(0,0, bg!.width.toDouble(), bg!.height.toDouble()), Rect.fromLTWH(0,0, worldSize, worldSize), Paint());
+    } else {
+       canvas.drawRect(Rect.fromLTWH(0,0, worldSize, worldSize), Paint()..color = Colors.green.shade900);
     }
 
-    // 3. رسم الطعام
-    for (var f in food) canvas.drawCircle(f, 12, Paint()..color = Colors.yellowAccent);
-
-    // 4. رسم الثعابين (مع فلتر اللون المختار)
-    for (var b in bots) _drawSnake(canvas, b, b.skinColor);
-    _drawSnake(canvas, player, player.skinColor);
+    for (var f in food) canvas.drawCircle(f, 15, Paint()..color = Colors.yellowAccent);
+    for (var b in bots) _drawSnake(canvas, b);
+    _drawSnake(canvas, player);
   }
 
-  void _drawSnake(Canvas canvas, Snake s, Color filter) {
+  void _drawSnake(Canvas canvas, Snake s) {
     if (head == null || body == null) return;
-    int gap = 4; // الفجوة بين قطع الجسم لمنع الاندماج في خط واحد
     for (int i = s.body.length - 1; i >= 0; i--) {
-      if (i % gap != 0 && i != 0) continue;
+      if (i % 6 != 0 && i != 0 && i != s.body.length - 1) continue;
       canvas.save();
       canvas.translate(s.body[i].dx, s.body[i].dy);
       canvas.rotate(s.angles[i] + pi / 2);
-      ui.Image img = (i == 0) ? head! : body!;
-      Paint p = Paint()..colorFilter = ColorFilter.mode(filter, BlendMode.modulate);
-      paintImage(canvas: canvas, rect: Rect.fromCenter(center: Offset.zero, width: i==0?85:65, height: i==0?85:65), image: img, colorFilter: p.colorFilter);
+      ui.Image img = (i == 0) ? head! : (i == s.body.length - 1 ? (tail ?? body!) : body!);
+      paintImage(canvas: canvas, rect: Rect.fromCenter(center: Offset.zero, width: i==0?90:70, height: i==0?90:70), image: img);
       canvas.restore();
     }
+  }
+  @override bool shouldRepaint(covariant CustomPainter old) => true;
+}
+
+// --- رسام الرادار ---
+class RadarPainter extends CustomPainter {
+  final Snake player; final List<Snake> bots; final double worldSize;
+  RadarPainter({required this.player, required this.bots, required this.worldSize});
+  @override void paint(Canvas canvas, Size size) {
+    double scale = size.width / worldSize;
+    canvas.drawCircle(player.body.first * scale, 5, Paint()..color = Colors.white);
+    for (var b in bots) canvas.drawCircle(b.body.first * scale, 3, Paint()..color = Colors.red);
   }
   @override bool shouldRepaint(covariant CustomPainter old) => true;
 }
