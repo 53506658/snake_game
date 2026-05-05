@@ -1,14 +1,19 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application
-        android:label="snake_game_full"
-        android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+<manifest xmlns:android="http://android.com"
+    package="com.example.snake_game"> <!-- تأكد أن هذا الاسم يطابق applicationId في build.gradle -->
 
-        <!-- أضف الكود أدناه هنا مباشرة لتعريف AdMob -->
+    <!-- صلاحيات الإنترنت والشبكة لعمل الإعلانات ولوحة الصدارة -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <application
+        android:label="Snake IO Pro"
+        android:name="${applicationName}"
+        android:icon="@mipmap/launcher_icon">
+
+        <!-- سطر إعلانات جوجل (AdMob) - ضروري جداً لمنع الانهيار -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713"/> 
-        <!-- انتهى كود AdMob -->
+            android:value="ca-app-pub-3940256099942544~3347511713"/> <!-- هذا معرّف تجريبي -->
 
         <activity
             android:name=".MainActivity"
@@ -19,10 +24,12 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
+            
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -34,10 +41,12 @@
             android:value="2" />
     </application>
 
+    <!-- معالجة الاستعلامات لنظام أندرويد 11 فما فوق -->
     <queries>
         <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
         </intent>
     </queries>
 </manifest>
