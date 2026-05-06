@@ -2,37 +2,34 @@ plugins {
     id "com.android.application"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
+    id "com.google.gms.google-services"
 }
 
 android {
-    // 1. حل تحذير الـ NDK
-    ndkVersion = "28.2.13676358" 
-
-    namespace = "com.example.snake_game"
-    compileSdk = flutter.compileSdkVersion
+    namespace "com.example.snake_game_full"
+    compileSdk flutter.compileSdkVersion
+    ndkVersion "28.2.1367635"
 
     compileOptions {
-        // 2. توحيد إصدار الجافا مع الكوتلن (حل الخطأ الرئيسي)
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        // 3. ضبط هدف الكوتلن ليكون 17
         jvmTarget = '17'
     }
 
     defaultConfig {
-        applicationId = "com.example.snake_game"
-        minSdk = 21
-        targetSdk = flutter.targetSdkVersion
-        versionCode = 1
-        versionName = "1.0.0"
+        applicationId "com.example.snake_game_full"
+        minSdk 21
+        targetSdk flutter.targetSdkVersion
+        versionCode 1
+        versionName "1.0.0"
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.debug
+            signingConfig signingConfigs.debug
             shrinkResources false
             minifyEnabled false
         }
@@ -40,13 +37,10 @@ android {
 }
 
 flutter {
-    source = "../.."
+    source "../.."
 }
 
 dependencies {
-    // إعدادات Firebase
     implementation platform('com.google.firebase:firebase-bom:32.7.0')
     implementation 'com.google.firebase:firebase-analytics'
 }
-// هذا السطر يربط ملف google-services.json بالكود فعلياً
-apply plugin: 'com.google.gms.google-services'
