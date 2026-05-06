@@ -1,3 +1,14 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // هذا السطر هو المحرك الأساسي لـ Firebase ومنع الانهيار
+        classpath 'com.google.gms:google-services:4.3.15'
+    }
+}
+
 allprojects {
     repositories {
         google()
