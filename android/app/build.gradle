@@ -8,7 +8,7 @@ plugins {
 android {
     namespace "com.example.snake_game_full"
     compileSdk flutter.compileSdkVersion
-    ndkVersion "28.2.1367635"
+    ndkVersion "26.1.10909125"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
